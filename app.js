@@ -191,6 +191,7 @@ function setupHand(gameId) {
     gameList[gameId].nextCardIndex = 0;
     gameList[gameId].pot = 0;
     gameList[gameId].history = [];
+    gameList[gameId].communityCards = [];
 
     drawCards(gameId);
 
@@ -236,7 +237,12 @@ function calculateHandValue(gameId, playerId) {
     let player = playerList[playerId];
     let cards = player.cards.concat(gameList[gameId].communityCards);
 
+    io.to(gameId).emit('updateGame', {
+        text: '' + playerId + ' had: ' + cards
+    })
     console.log(cards)
+
+    
 
     let numCounts = [];
     let suitCounts = { H: 0, D: 0, C: 0, S: 0 };
@@ -422,6 +428,9 @@ function calculateHandResult(gameId) {
 
 
     for (let playerId of playerIds) {
+        if (playerList[playerId].bet == 0) {
+            continue;
+        }
         let curScore = calculateHandValue(gameId, playerId);
         console.log(playerId + ": " + curScore)
         if (curScore > maxScore) {
@@ -454,8 +463,9 @@ function calculateHandResult(gameId) {
         }
         winnerText += 'split the pot';
     }
+
     io.to(gameId).emit('updateGame', {
-        pastMoveText: winnerText
+        text: winnerText
     })
 
     setupHand(gameId)    
@@ -467,6 +477,7 @@ function setNextPhase(gameId) {
     let dealtCards = [];
     if (curPhase == 3) {
         calculateHandResult(gameId);
+        gameList[gameId].phase = 0;
     }
     else {
         if (curPhase == 0) {
@@ -496,10 +507,10 @@ function setNextPhase(gameId) {
         gameList[gameId].phase++; 
         gameList[gameId].history = [];
         gameList[gameId].recentBet = 0;
-        let players = gameList[gameId].players
-        for (let playerId of players) {
-            playerList[playerId].bet = null;
-        }
+    }
+    let players = gameList[gameId].players
+    for (let playerId of players) {
+        playerList[playerId].bet = null;
     }
 }
 
@@ -644,7 +655,7 @@ io.on("connection", function (socket) {
             });
 
             io.to(data.gameId).emit("updateGame", {
-                pastMoveText: gameList[socket.gameId].history[gameList[socket.gameId].history.length - 1].message,
+                text: gameList[socket.gameId].history[gameList[socket.gameId].history.length - 1].message,
             });
 
             //get next player turn from folds and such
@@ -652,47 +663,6 @@ io.on("connection", function (socket) {
             updatePlayerArray(data.gameId);
         } else {
             socket.emit("addToChat", "<b> not your turn <b>");
-        }
-    });
-
-    socket.on("checkHand", function (data) {
-        if (gameList[data.gameId].playerTurn == null) {
-            socket.emit("addToChat", "<b> game has not started yet <b>");
-        } else {
-            //true if there is that hand
-            handValidity = checkHand(data.gameId);
-            //console.log(handValidity);
-            doubtValidity = "CORRECTLY";
-            if (handValidity) {
-                doubtValidity = "INCORRECTLY";
-                playerList[socket.realId].lives--;
-                //change turn to player who doubted
-                gameList[data.gameId].playerTurn = gameList[data.gameId].players.indexOf(socket.realId);
-            } else {
-                playerList[
-                    playerArray[(playerArray.length + gameList[data.gameId].playerTurn - 1) % playerArray.length]
-                ].lives--;
-                //need to change turn to player who just played turn
-                gameList[data.gameId].playerTurn =
-                    (gameList[data.gameId].playerTurn + gameList[data.gameId].numPlayers - 1) %
-                    gameList[data.gameId].numPlayers;
-            }
-
-            io.to(data.gameId).emit(
-                "addToChat",
-                "<b> " +
-                    playerList[socket.realId].name +
-                    " " +
-                    doubtValidity +
-                    " doubted " +
-                    gameList[data.gameId].history[gameList[data.gameId].history.length - 1][0] +
-                    "'s hand </b>"
-            );
-            for (i in playerList) {
-                io.to(data.gameId).emit("addToChat", playerList[i].name + " had: " + playerList[i].cards);
-            }
-
-            setupHand(data.gameId);
         }
     });
 

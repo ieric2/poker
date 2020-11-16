@@ -205,7 +205,7 @@
 
         socket.on("updateGame", function(data){
             console.log('updating game')
-            playHistory.innerHTML +=  '<div>' + data.pastMoveText + '</div>';
+            playHistory.innerHTML +=  '<div>' + data.text + '</div>';
         })
 
         socket.on("displayPlayButtons", function(){
