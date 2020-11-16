@@ -622,10 +622,11 @@ io.on("connection", function (socket) {
                 socket.emit("addToChat", "<b> Invalid Bet <b>");
                 return -1;
             }
+            let betDiff = data.bet - playerList[socket.realId].bet;
             playerList[socket.realId].bet = data.bet;
-            playerList[socket.realId].balance -= data.bet;
+            playerList[socket.realId].balance -= betDiff;
 
-            gameList[data.gameId].pot += data.bet;
+            gameList[data.gameId].pot += betDiff;
             io.to(data.gameId).emit('setPot', {
                 pot: gameList[data.gameId].pot
             })
