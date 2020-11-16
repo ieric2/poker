@@ -334,7 +334,7 @@ function calculateHandValue(gameId, playerId) {
     for (let startIndex = 14; startIndex >= 5; startIndex--) {
         let straightFlag = true;
         for (var i = 0; i < 5; i++) {
-            if (startIndex - i == -1) {
+            if (startIndex - i == 1) {
                 if (numCounts[14] < 1) {
                     straightFlag = false;
                     break;
@@ -369,7 +369,7 @@ function calculateHandValue(gameId, playerId) {
             for (let j = i - 1; j >= 2; j--) {
                 if (numCounts[j] >= 2) {
                     for (let k = 14; k >= 2; k--) {
-                        if (k != i && k != j) {
+                        if (numCounts[k] >= 1 && k != i && k != j) {
                             return 200000000 + 10000 * i + 100 * j + k;
                         }
                     }
@@ -380,7 +380,19 @@ function calculateHandValue(gameId, playerId) {
     //pair
     for (let i = 14; i >= 2; i--) {
         if (numCounts[i] >= 2) {
-            return 100000000;
+            for (let j = 14; j >= 2; j--) {
+                if (numCounts[j] >= 1 && j != i) {
+                    for (let k = j - 1; k >= 2; k--) {
+                        if (numCounts[k] >= 1 && k != i) {
+                            for (let z = k - 1; z >= 2; z--) {
+                                if (numCounts[z] >= 1 && z != i) {
+                                    return 100000000 + 1000000 * i + 10000 * j + 100 * k + z;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }       
     }
     //high card
@@ -390,7 +402,11 @@ function calculateHandValue(gameId, playerId) {
                 if (numCounts[j] >= 1) {
                     for (let k = j - 1; k >= 2; k--) {
                         if (numCounts[k] >= 1) {
-                            return i * 10000 + 100 * j + k;
+                            for (let l = k - 1; l >= 2; l--) {
+                                if (numCounts[l] >= 1) {
+                                    return i * 1000000 + 10000 * j + 100 * k + l;
+                                }
+                            }
                         }
                     }
                 }
@@ -407,6 +423,7 @@ function calculateHandResult(gameId) {
 
     for (let playerId of playerIds) {
         let curScore = calculateHandValue(gameId, playerId);
+        console.log(playerId + ": " + curScore)
         if (curScore > maxScore) {
             winners = [];
             winners.push(playerId);
@@ -429,11 +446,11 @@ function calculateHandResult(gameId) {
     })
     let winnerText = '';
     if (winners.length == 1) {
-        winnerText = winners[0] + ' won the pot';
+        winnerText = playerList[winners[0]].name + ' won the pot';
     }
     else {
         for (let winner of winners) {
-            winnerText += winner + ', ';
+            winnerText += playerList[winner].name + ', ';
         }
         winnerText += 'split the pot';
     }
