@@ -397,7 +397,6 @@ function calculateHandValue(gameId, playerId) {
             }
         }
     }
-   
 }
 
 function calculateHandResult(gameId) {
@@ -428,9 +427,21 @@ function calculateHandResult(gameId) {
     io.to(gameId).emit('setPot', {
         pot: 0
     })
+    let winnerText = '';
+    if (winners.length == 1) {
+        winnerText = winners[0] + ' won the pot';
+    }
+    else {
+        for (let winner of winners) {
+            winnerText += winner + ', ';
+        }
+        winnerText += 'split the pot';
+    }
+    io.to(gameId).emit('updateGame', {
+        pastMoveText: winnerText
+    })
 
     setupHand(gameId)    
-
 }
 
 //where 0 - preflop betting, 1 - flop betting, 2 - turn betting, 3 - river betting

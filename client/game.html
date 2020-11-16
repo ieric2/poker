@@ -156,7 +156,6 @@
 
 
         socket.on("newHand", function(data){
-            playHistory.innerHTML = "";
             let cards = data.cards;
             for (let i = 0; i < cards.length; i++) {
                 src = "../client/images/cards/"+cards[i]+".svg"
