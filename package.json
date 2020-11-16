@@ -1,16 +1,16 @@
 {
   "name": "poker",
   "version": "1.0.0",
-  "description": "",
+  "description": "texas holdem poker",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node app.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ieric2/poker.git"
   },
-  "author": "ieric",
+  "author": "ieric, cathxu, anayatiffany",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/ieric2/poker/issues"
@@ -18,8 +18,6 @@
   "homepage": "https://github.com/ieric2/poker#readme",
   "dependencies": {
     "express": "^4.17.1",
-    "socket-io": "^1.0.0",
-    "socket.io": "^3.0.0",
-    "uuid": "^8.3.1"
+    "socket.io": "^2.3.0"
   }
 }
