@@ -35,6 +35,7 @@ class Game {
         this.history = [];
         this.recentBet = 0;
         this.playerTurn = null;
+        this.dealerId = null;
         this.nextCardIndex = 0;
         this.pot = 0;
         this.phase = 0;
@@ -188,7 +189,8 @@ function setupHand(gameId) {
     gameList[gameId].shuffle();
     gameList[gameId].recentBet = 0;
     //TODO:: fix playerturn
-    gameList[gameId].playerTurn = 0;    
+    gameList[gameId].playerTurn = 0;
+    gameList[gameId].dealerId = 0;    
     gameList[gameId].nextCardIndex = 0;
     gameList[gameId].pot = 0;
     gameList[gameId].history = [];
@@ -493,9 +495,6 @@ function setNextPhase(socket, gameId) {
         for (let playerId of players) {
             playerList[playerId].bet = null;
         }
-        if (botId == playerArray[gameList[socket.gameId].playerTurn]) {
-            botTurn(socket);
-        }
     }
 }
 
@@ -528,6 +527,12 @@ function calculateNextTurn(socket, gameId) {
             //betting phase is over
             else if (player.bet == curBet) {
                 setNextPhase(socket, gameId);
+                var curDealer = gameList[gameId].dealerId;
+                gameList[gameId].dealerId = (curDealer + 1) % numPlayers;
+                gameList[gameId].playerTurn = gameList[gameId].dealerId;
+                if (botId == playerArray[gameList[gameId].playerTurn]) {
+                    botTurn(socket);
+                }
                 return;
             }
 
@@ -554,7 +559,7 @@ function botTurn(socket) {
         balance:playerList[botId].balance	
     });	
     //fold	
-    if (bet == 0) {	
+    if (bet == -1) {	
         message = playerList[botId].name + " folded";	
         console.log("bot folded");	
     }	
@@ -722,7 +727,7 @@ io.on("connection", function (socket) {
             });
 
             //fold
-            if (data.bet == 0) {
+            if (data.bet == -1) {
                 message = playerList[socket.realId].name + " folded";
             }
             //call
