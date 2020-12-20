@@ -148,6 +148,7 @@
         }
 
         function onCall() {
+            var bet = -2
             socket.emit("playTurn", {bet:bet, gameId: gameId});
         }
         
