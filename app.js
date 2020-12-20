@@ -415,7 +415,7 @@ function calculateHandResult(gameId) {
     let winners = [];
     let maxScore = 0;
     for (let playerId of playerIds) {
-        if (playerList[playerId].bet == 0) {
+        if (playerList[playerId].bet == -1) {
             continue;
         }
         let curScore = calculateHandValue(gameId, playerId);
@@ -460,9 +460,6 @@ function setNextPhase(socket, gameId) {
     console.log('curPhase ' + curPhase)
     let dealtCards = [];
     if (curPhase == 3) {
-        var curDealer = gameList[gameId].dealerId;
-        gameList[gameId].dealerId = (curDealer + 1) % numPlayers;
-        gameList[gameId].playerTurn = gameList[gameId].dealerId;
         calculateHandResult(gameId);
         gameList[gameId].phase = 0;
     }
@@ -506,6 +503,20 @@ function calculateNextTurn(socket, gameId) {
     let numPlayers = gameList[gameId].numPlayers;
     let curTurn = gameList[gameId].playerTurn;
     let curBet = gameList[gameId].recentBet;
+    //checking if everyone folded
+    let numActivePlayers = 0;
+    for (let i = 0; i < players.length; i++) {
+        if (playerList[players[i]].bet !== -1) {
+            numActivePlayers++;
+        }
+    }
+    if (numActivePlayers == 1) {
+        console.log('everyone folded??');
+        gameList[gameId].phase = 3;
+        setNextPhase(socket, gameId);
+        return;
+    }
+
     //check if betting round is over
     let pointer = (curTurn + 1) % numPlayers;
     console.log(curTurn)
@@ -521,14 +532,17 @@ function calculateNextTurn(socket, gameId) {
             if (player.bet == null || player.bet < curBet) {
                 gameList[gameId].playerTurn = pointer;
                 if (botId == playerArray[gameList[gameId].playerTurn]) {	
-                    botTurn(socket);	
+                    console.log('testing 1')
+                    botTurn(socket);
                 }
                 return;
             }
             //betting phase is over( there are 4 betting phases in a hand)
             else if (player.bet == curBet) {
                 setNextPhase(socket, gameId);
+                gameList[gameId].playerTurn = gameList[gameId].dealerId;
                 if (botId == playerArray[gameList[gameId].playerTurn]) {
+                    console.log('testing 2')
                     botTurn(socket);
                 }
                 return;
@@ -544,7 +558,7 @@ function calculateNextTurn(socket, gameId) {
 function botTurn(socket) {	
     let botHandVal = calculateHandValue(socket.gameId, botId);	
     let recentBet = gameList[socket.gameId].recentBet;	
-    let bet = calculateBotBet(recentBet, botHandVal);	
+    let bet = calculateBotBet(recentBet, botHandVal, socket.gameId);	
     console.log("bot turn bet = " + bet);	
     // console.log("bot cur hand val = " + botHandVal);	
     playerList[botId].bet = bet;	
@@ -584,42 +598,129 @@ function botTurn(socket) {
     });	
     //get next player turn from folds and such	
     calculateNextTurn(socket, socket.gameId);	
-    updatePlayerArray(socket.gameId);	
-}	
-function calculateBotBet(recentBet, botHandVal) {	
+    updatePlayerArray(socket.gameId);
+}
+function calculateBotBet(recentBet, botHandVal, gameId) {	
     //fix this later 	
     //check all in behavior	
-    //change it to % of recentBet instead of numbers	
+    let curPhase = gameList[gameId].phase;
     let bet = 0;	
-    if (botHandVal == undefined) {	
-        bet = recentBet + 1;	
-    } else if (botHandVal < 100000000) {	
-        bet = recentBet;	
-    } else if (botHandVal < 200000000) {	
-        bet = recentBet + 1;	
-    } else if (botHandVal < 300000000) {	
-        bet = recentBet + 2;	
-    } else if (botHandVal < 400000000) {	
-        bet = recentBet + 3;	
-    } else if (botHandVal < 500000000) {	
-        bet = recentBet + 4;	
-    } else if (botHandVal < 600000000) {	
-        bet = recentBet + 5;	
-    } else if (botHandVal < 700000000) {	
-        bet = recentBet + 6;	
-    } else if (botHandVal < 800000000) {	
-        bet = recentBet + 7;	
-    } else if (botHandVal < 900000000) {	
-        bet = recentBet + 8;	
+    if (curPhase == 0) { //preflop betting
+        let cards = playerList[botId].cards;
+        console.log(cards)
+        
+        let num1;
+        let suit1;
+        let num2;
+        let suit2;
+        
+        if (cards[0].length == 3) {
+            num1 = convertCardValue(cards[0].substring(0, 2));
+            suit1 = cards[i].charAt(2);
+        } else {
+            num1 = convertCardValue(cards[0].charAt(0));
+            suit1 = cards[0].charAt(1);
+        }
+        if (cards[1].length == 3) {
+            num2 = convertCardValue(cards[1].substring(0, 2));
+            suit2 = cards[1].charAt(2);
+        } else {
+            num2 = convertCardValue(cards[1].charAt(0));
+            suit2 = cards[1].charAt(1);
+        }
+
+        console.log("Card 1: " + num1 + suit1);
+        console.log("Card 2: " + num2 + suit2);
+
+        //pair
+        if (num1 == num2) {
+            //if they call we should just bet like 10 else 
+            bet = 10;
+        }
+        
+        //2 of same suit
+        else if (suit1 == suit2) {
+            bet = 5;
+        }
+        
+        //high card
+        else if (num1 >= 13 || num2 >= 13 || (num1 > 10 && num2 > 10)) {
+            bet = 5;
+        } 
+        else {
+            //call here
+            bet = recentBet;
+        }
+        
+    } else if (curPhase == 1) { //flop betting
+        if (botHandVal == undefined) { //but this shouldn't happen ?
+            bet = -1;
+        } else if (botHandVal < 100000000) {	
+            bet = recentBet; 
+        } else if (botHandVal < 200000000) {	
+            bet = recentBet * 1.1;
+        } else if (botHandVal < 300000000) {	
+            bet = recentBet * 1.15;
+        } else if (botHandVal < 400000000) {	
+            bet = recentBet * 1.2;
+        } else if (botHandVal < 500000000) {	
+            bet = recentBet * 1.25;
+        } else if (botHandVal < 600000000) {	
+            bet = recentBet * 1.4;
+        } else if (botHandVal < 700000000) {	
+            bet = recentBet * 2;
+        } else if (botHandVal < 800000000) {	
+            bet = recentBet * 2.5;
+        } else if (botHandVal < 900000000) {	
+            bet = recentBet * 3;
+        }
+    } else if (curPhase == 2) { //turn betting
+        if (botHandVal == undefined) { //but this shouldn't happen ?
+            bet = recentBet + 1;
+        } else if (botHandVal < 200000000) {
+            bet = -1;
+        } else if (botHandVal < 200000000) {
+            bet = recentBet; //call 
+        } else if (botHandVal < 300000000) {
+            bet = recentBet * 1.1;
+        } else if (botHandVal < 400000000) {
+            bet = recentBet * 1.2;
+        } else if (botHandVal < 500000000) {
+            bet = recentBet * 1.25;
+        } else if (botHandVal < 600000000) {
+            bet = recentBet * 1.4;
+        } else if (botHandVal < 700000000) {
+            bet = recentBet * 1.8;
+        } else if (botHandVal < 800000000) {
+            bet = recentBet * 2;
+        } else if (botHandVal < 900000000) {
+            bet = recentBet * 2.5;
+        }
+    } else if (curPhase == 3) { //river betting
+        if (botHandVal == undefined) { //but this shouldn't happen ?
+            bet = recentBet;
+        } else if (botHandVal < 200000000) {
+            bet = -1;
+        } else if (botHandVal < 300000000) {
+            bet = recentBet;
+        } else if (botHandVal < 400000000) {
+            bet = recentBet * 1.15;
+        } else if (botHandVal < 500000000) {
+            bet = recentBet * 1.25;
+        } else if (botHandVal < 600000000) {
+            bet = recentBet * 1.4;
+        } else if (botHandVal < 700000000) {
+            bet = recentBet * 1.7;
+        } else if (botHandVal < 800000000) {
+            bet = recentBet * 1.85;
+        } else if (botHandVal < 900000000) {
+            bet = recentBet * 2;
+        }
+    } 
+    if (bet > playerList[botId].balance) {
+        return playerList[botId].balance;
     }	
-    	
-    if (bet > playerList[botId].balance) {	
-        if (playerList[botId].balance < recentBet) {	
-            return 0;	
-        }	
-        return playerList[botId].balance;	
-    }	
-    return bet;	
+    return Math.round(bet);	
     	
 }
 
