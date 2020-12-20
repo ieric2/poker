@@ -660,16 +660,35 @@ function calculateBotBet(recentBet, botHandVal, gameId) {
             bet = recentBet * 1.15;
         } else if (botHandVal < 400000000) {	
             bet = recentBet * 1.2;
-        } else if (botHandVal < 500000000) {	
-            bet = recentBet * 1.25;
-        } else if (botHandVal < 600000000) {	
-            bet = recentBet * 1.4;
-        } else if (botHandVal < 700000000) {	
-            bet = recentBet * 2;
-        } else if (botHandVal < 800000000) {	
-            bet = recentBet * 2.5;
-        } else if (botHandVal < 900000000) {	
-            bet = recentBet * 3;
+        } else if (botHandVal < 500000000) {
+            if (recentBet == 0) {
+                bet = 5
+            } else {
+                bet = recentBet * 1.25;
+            }
+        } else if (botHandVal < 600000000) {
+            if (recentBet == 0) {
+                bet = 6
+            } else {
+                bet = recentBet * 1.4;
+            }
+        } else if (botHandVal < 700000000) {
+            if (recentBet == 0) {
+                bet = 7
+            } else {
+                bet = recentBet * 2;
+            }
+        } else if (botHandVal < 800000000) {
+            if (recentBet == 0) {
+                bet = 8
+            }	
+            else bet = recentBet * 2.5;
+        } else if (botHandVal < 900000000) {
+            if (recentBet == 0) {
+                bet = 9
+            } else {
+                bet = recentBet * 3;
+            }
         }
     } else if (curPhase == 2) { //turn betting
         if (botHandVal == undefined) { //but this shouldn't happen ?
@@ -685,13 +704,29 @@ function calculateBotBet(recentBet, botHandVal, gameId) {
         } else if (botHandVal < 500000000) {
             bet = recentBet * 1.25;
         } else if (botHandVal < 600000000) {
-            bet = recentBet * 1.4;
+            if (recentBet == 0) {
+                bet = 5;
+            } else {
+                bet = recentBet * 1.4;
+            }
         } else if (botHandVal < 700000000) {
-            bet = recentBet * 1.8;
+            if (recentBet == 0) {
+                bet = 6;
+            } else {
+                bet = recentBet * 1.8;
+            }
         } else if (botHandVal < 800000000) {
-            bet = recentBet * 2;
+            if (recentBet == 0) {
+                bet = 7;
+            } else {
+                bet = recentBet * 2;
+            }
         } else if (botHandVal < 900000000) {
-            bet = recentBet * 2.5;
+            if (recentBet == 0) {
+                bet = 5;
+            } else {
+                bet = recentBet * 2.5;
+            }
         }
     } else if (curPhase == 3) { //river betting
         if (botHandVal == undefined) { //but this shouldn't happen ?
@@ -707,11 +742,23 @@ function calculateBotBet(recentBet, botHandVal, gameId) {
         } else if (botHandVal < 600000000) {
             bet = recentBet * 1.4;
         } else if (botHandVal < 700000000) {
-            bet = recentBet * 1.7;
+            if (recentBet == 0) {
+                bet = 5;
+            } else {
+                bet = recentBet * 1.7;
+            }
         } else if (botHandVal < 800000000) {
-            bet = recentBet * 1.85;
+            if (recentBet == 0) {
+                bet = 7;
+            } else {
+                bet = recentBet * 1.85;
+            }
         } else if (botHandVal < 900000000) {
-            bet = recentBet * 2;
+            if (recentBet == 0) {
+                bet = 9;
+            } else {
+                bet = recentBet * 2;
+            }
         }
     } 
     if (bet > playerList[botId].balance) {
@@ -806,11 +853,6 @@ io.on("connection", function (socket) {
         //cast the string to int
         data.bet = + data.bet;
         if (socket.realId == playerArray[gameList[socket.gameId].playerTurn]) {
-            // //bet needs to be greater than previous bet, but we don't care :)
-            // if (data.bet != 0 && data.bet < gameList[socket.gameId].recentBet) {
-            //     socket.emit("addToChat", "<b> Invalid Bet <b>");
-            //     return -1;
-            // }
             let betDiff = data.bet - playerList[socket.realId].bet;
             playerList[socket.realId].bet = data.bet;
             playerList[socket.realId].balance -= betDiff;
