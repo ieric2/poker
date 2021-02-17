@@ -1,3 +1,4 @@
+const { SSL_OP_SSLEAY_080_CLIENT_DH_BUG } = require("constants");
 var express = require("express");
 const { Z_ASCII } = require("zlib");
 var app = express();
@@ -41,6 +42,9 @@ class Game {
         this.pot = 0;
         this.phase = 0;
         this.communityCards = [];
+        this.startTimeMs = Date.now();
+        this.endTimeMs = 0;
+        this.endPhase = 0;
         this.cards = [
             "2H",
             "3H",
@@ -108,6 +112,7 @@ class Game {
     addPlayer(playerId) {
         this.players.push(playerId);
         this.numPlayers++;
+        playerDataList[playerId] = new PlayerData(playerId);
         console.log(playerId + " joined game: " + this.gameId);
     }
     shuffle() {
@@ -125,13 +130,70 @@ class Game {
           this.cards[currentIndex] = this.cards[randomIndex];
           this.cards[randomIndex] = temporaryValue;
         }
-      
-      }
+    }
+    setEndTimeMs() {
+        this.endTimeMs = Date.now();
+    }
+    setEndPhase(phase) {
+        this.setEndPhase = phase;
+    }
 }
+class PlayerData {
+    constructor(playerId) {
+        this.playerId = playerId;
+        this.avgGameLength = null;
+        this.numFolds = 0;
+        this.numWins = 0;
+        this.numGames = 0;
+        this.highestBid = null;
+        this.lowestBid = null;
+        this.avgTimeToBet = null;
+        this.lastTimeToBet = 0;
+        this.numBets = 0;
+        //this.games = null;
+    }
+    setAvgGameLength(curLength) {
+        if (this.avgGameLength == null) {
+            this.avgGameLength = curLength;
+        } else {
+            this.avgGameLength = ((this.avgGameLength * numGames) + curLength) / (numGames + 1);
+        }
+        this.addGame();
+    }
+    setPlayerBidValues(currBid) {
+        if (this.lowestBid == null || currBid < this.lowestBid) {
+            this.lowestBid = currBid;
+        } 
+        if (this.highestBid == null || currBid > this.highestBid) {
+            this.highestBid = currBid;
+        }
+    }
+    addGame() { //only used within class
+        this.numGames++;
+    }
+    addWin() {
+        this.numWims++;
+    }
+    addFold() {
+        this.numFolds++;
+    }
+    setLastTimeToBet(time) {
+        this.lastTimeToBet = time;
+        if (this.avgTimeToBet == null) {
+            this.avgTimeToBet = time;
+        } else {
+            this.avgTimeToBet = ((this.avgTimeToBet * this.numBets) + time) / (this.numBets + 1);            
+        }
+        this.numBets++;
+    }
+    
+}
+
 var socketList = {};
 //map of playerId to player Object
 var playerList = {};
 var gameList = {};
+var playerDataList = {};
 var playerArray = [];
 var gameArray = [];
 var botId = 1230;
@@ -232,6 +294,22 @@ function updatePlayerArray(gameId) {
         playerIds: gameList[gameId].players,
         playerTurn: gameList[gameId].playerTurn,
     });
+}
+function updatePlayerBetData(playerId, currBet) {  
+    playerDataList[playerId].setPlayerBidValues(currBet);
+}
+function updatePlayerWinCount(playerId) {
+    playerDataList[playerId].addWin();
+}
+function updatePlayerFoldCount(playerId) {
+    playerDataList[playerId].addFold();
+}
+function updatePlayerGameTime(playerId, gameId) {
+    let gameLength = gameList[gameId].endTimeMs - gameList[gameId].startTimeMs;
+    playerDataList[playerId].setAvgGameLength(gameLength);
+}
+function updatePlayerTimeToBet(playerId, time) {
+    playerDataList[playerId].setLastTimeToBet(time);
 }
 function calculateHandValue(gameId, playerId) {
     let player = playerList[playerId];
@@ -416,6 +494,8 @@ function calculateHandResult(gameId) {
     let playerIds = gameList[gameId].players
     let winners = [];
     let maxScore = 0;
+    gameList[gameId].setEndTimeMs();
+    gameList[gameId].setEndPhase(gameList[gameId].phase);
     for (let playerId of playerIds) {
         if (playerList[playerId].bet == -1) {
             continue;
@@ -437,6 +517,8 @@ function calculateHandResult(gameId) {
         io.to(playerId).emit('setBalance', {
             balance: playerList[playerId].balance
         })
+        updatePlayerWinCount(playerId);
+        updatePlayerGameTime(playerId, gameId);
     }
     io.to(gameId).emit('setPot', {
         pot: 0
@@ -499,7 +581,6 @@ function setNextPhase(socket, gameId) {
         }
     }
 }
-
 function calculateNextTurn(socket, gameId) {
     let players = gameList[gameId].players;
     let numPlayers = gameList[gameId].numPlayers;
@@ -527,9 +608,10 @@ function calculateNextTurn(socket, gameId) {
         //player has folded
         if (player.bet == -1) {
             pointer = (pointer + 1) % numPlayers;
+            updatePlayerFoldCount();
         }
         else {
-            
+            updatePlayerBetData(player.id);
             //found player to take next turn;
             if (player.bet == null || player.bet < curBet) {
                 gameList[gameId].playerTurn = pointer;
@@ -602,6 +684,7 @@ function botTurn(socket) {
     calculateNextTurn(socket, socket.gameId);	
     updatePlayerArray(socket.gameId);
 }
+
 function calculateBotBet(recentBet, botHandVal, gameId) {	
     //fix this later 	
     //check all in behavior	
@@ -857,6 +940,7 @@ io.on("connection", function (socket) {
         //cast the string to int
         data.bet = + data.bet;
         if (socket.realId == playerArray[gameList[socket.gameId].playerTurn]) {
+            let turnStartTime = Date.now();
             //set call behavior
             if (data.bet === -2) {
                 data.bet = gameList[socket.gameId].recentBet
@@ -890,7 +974,8 @@ io.on("connection", function (socket) {
                 gameList[socket.gameId].recentBet = data.bet;
                 message = playerList[socket.realId].name + " bet: " + data.bet;
             }
-
+            let turnEndTime = Date.now();
+            updatePlayerTimeToBet(socket.realId, turnEndTime - turnStartTime);
             gameList[socket.gameId].history.push({
                 playerId: socket.realId,
                 bet: data.bet,
