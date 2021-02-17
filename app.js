@@ -1,3 +1,4 @@
+const { SSL_OP_SSLEAY_080_CLIENT_DH_BUG } = require("constants");
 var express = require("express");
 const { Z_ASCII } = require("zlib");
 var app = express();
@@ -22,6 +23,7 @@ class Player {
         this.bet = null;
         this.balance = 200;
         this.isBot = isBot;
+        this.inHand = true;
     }
     setName(name) {
         this.name = name;
@@ -40,6 +42,9 @@ class Game {
         this.pot = 0;
         this.phase = 0;
         this.communityCards = [];
+        this.startTimeMs = Date.now();
+        this.endTimeMs = 0;
+        this.endPhase = 0;
         this.cards = [
             "2H",
             "3H",
@@ -107,6 +112,7 @@ class Game {
     addPlayer(playerId) {
         this.players.push(playerId);
         this.numPlayers++;
+        playerDataList[playerId] = new PlayerData(playerId);
         console.log(playerId + " joined game: " + this.gameId);
     }
     shuffle() {
@@ -124,12 +130,70 @@ class Game {
           this.cards[currentIndex] = this.cards[randomIndex];
           this.cards[randomIndex] = temporaryValue;
         }
-      
-      }
+    }
+    setEndTimeMs() {
+        this.endTimeMs = Date.now();
+    }
+    setEndPhase(phase) {
+        this.setEndPhase = phase;
+    }
 }
+class PlayerData {
+    constructor(playerId) {
+        this.playerId = playerId;
+        this.avgGameLength = null;
+        this.numFolds = 0;
+        this.numWins = 0;
+        this.numGames = 0;
+        this.highestBid = null;
+        this.lowestBid = null;
+        this.avgTimeToBet = null;
+        this.lastTimeToBet = 0;
+        this.numBets = 0;
+        //this.games = null;
+    }
+    setAvgGameLength(curLength) {
+        if (this.avgGameLength == null) {
+            this.avgGameLength = curLength;
+        } else {
+            this.avgGameLength = ((this.avgGameLength * numGames) + curLength) / (numGames + 1);
+        }
+        this.addGame();
+    }
+    setPlayerBidValues(currBid) {
+        if (this.lowestBid == null || currBid < this.lowestBid) {
+            this.lowestBid = currBid;
+        } 
+        if (this.highestBid == null || currBid > this.highestBid) {
+            this.highestBid = currBid;
+        }
+    }
+    addGame() { //only used within class
+        this.numGames++;
+    }
+    addWin() {
+        this.numWims++;
+    }
+    addFold() {
+        this.numFolds++;
+    }
+    setLastTimeToBet(time) {
+        this.lastTimeToBet = time;
+        if (this.avgTimeToBet == null) {
+            this.avgTimeToBet = time;
+        } else {
+            this.avgTimeToBet = ((this.avgTimeToBet * this.numBets) + time) / (this.numBets + 1);            
+        }
+        this.numBets++;
+    }
+    
+}
+
 var socketList = {};
+//map of playerId to player Object
 var playerList = {};
 var gameList = {};
+var playerDataList = {};
 var playerArray = [];
 var gameArray = [];
 var botId = 1230;
@@ -138,7 +202,6 @@ function createPlayer(socket) {
     playerArray.push(socket.realId);
 }
 function createBotPlayer(socket, gameId) {
-    console.log(gameId);
     playerList[botId] = new Player(botId, true);
     playerList[botId].setName("Buddy the Bot");
     playerArray.push(botId);
@@ -198,6 +261,7 @@ function setupHand(gameId) {
     drawCards(gameId);
     for (var i in gameList[gameId].players) {
         const playerId = gameList[gameId].players[i];
+        playerList[playerId].inHand = true;
         io.to(playerId).emit("newHand", {
             cards: playerList[playerId].cards,
         });
@@ -231,13 +295,30 @@ function updatePlayerArray(gameId) {
         playerTurn: gameList[gameId].playerTurn,
     });
 }
+function updatePlayerBetData(playerId, currBet) {  
+    playerDataList[playerId].setPlayerBidValues(currBet);
+}
+function updatePlayerWinCount(playerId) {
+    playerDataList[playerId].addWin();
+}
+function updatePlayerFoldCount(playerId) {
+    playerDataList[playerId].addFold();
+}
+function updatePlayerGameTime(playerId, gameId) {
+    let gameLength = gameList[gameId].endTimeMs - gameList[gameId].startTimeMs;
+    playerDataList[playerId].setAvgGameLength(gameLength);
+}
+function updatePlayerTimeToBet(playerId, time) {
+    playerDataList[playerId].setLastTimeToBet(time);
+}
 function calculateHandValue(gameId, playerId) {
     let player = playerList[playerId];
     let cards = player.cards.concat(gameList[gameId].communityCards);
-    io.to(gameId).emit('updateGame', {
-        text: '' + playerId + ' had: ' + cards
-    })
-    console.log(cards)
+    if (gameList[gameId].phase == 3) {
+        io.to(gameId).emit('updateGame', {
+            text: '' + player.name + ' had: ' + cards
+        })    
+    }
     
     let numCounts = [];
     let suitCounts = { H: 0, D: 0, C: 0, S: 0 };
@@ -256,8 +337,6 @@ function calculateHandValue(gameId, playerId) {
         numCounts[num]++;
         suitCounts[suit]++;
     }
-    console.log(suitCounts)
-    console.log(numCounts)
     //royalFlush
     let startIndex = 14;
     let royalFlushFlag = true;
@@ -415,8 +494,10 @@ function calculateHandResult(gameId) {
     let playerIds = gameList[gameId].players
     let winners = [];
     let maxScore = 0;
+    gameList[gameId].setEndTimeMs();
+    gameList[gameId].setEndPhase(gameList[gameId].phase);
     for (let playerId of playerIds) {
-        if (playerList[playerId].bet == 0) {
+        if (playerList[playerId].bet == -1) {
             continue;
         }
         let curScore = calculateHandValue(gameId, playerId);
@@ -436,6 +517,8 @@ function calculateHandResult(gameId) {
         io.to(playerId).emit('setBalance', {
             balance: playerList[playerId].balance
         })
+        updatePlayerWinCount(playerId);
+        updatePlayerGameTime(playerId, gameId);
     }
     io.to(gameId).emit('setPot', {
         pot: 0
@@ -458,6 +541,7 @@ function calculateHandResult(gameId) {
 //where 0 - preflop betting, 1 - flop betting, 2 - turn betting, 3 - river betting
 function setNextPhase(socket, gameId) {
     let curPhase = gameList[gameId].phase;
+    console.log('curPhase ' + curPhase)
     let dealtCards = [];
     if (curPhase == 3) {
         calculateHandResult(gameId);
@@ -497,40 +581,52 @@ function setNextPhase(socket, gameId) {
         }
     }
 }
-
 function calculateNextTurn(socket, gameId) {
     let players = gameList[gameId].players;
     let numPlayers = gameList[gameId].numPlayers;
     let curTurn = gameList[gameId].playerTurn;
     let curBet = gameList[gameId].recentBet;
+    //checking if everyone folded
+    let numActivePlayers = 0;
+    for (let i = 0; i < players.length; i++) {
+        if (playerList[players[i]].bet !== -1) {
+            numActivePlayers++;
+        }
+    }
+    if (numActivePlayers == 1) {
+        console.log('everyone folded??');
+        gameList[gameId].phase = 3;
+        setNextPhase(socket, gameId);
+        return;
+    }
+
     //check if betting round is over
     let pointer = (curTurn + 1) % numPlayers;
+    console.log(curTurn)
     while(pointer != curTurn) {
         let player = playerList[players[pointer]];
         //player has folded
-        if (player.bet == 0) {
+        if (player.bet == -1) {
             pointer = (pointer + 1) % numPlayers;
-        }
-        else if (curBet == 0) {
-            console.log('edge case??')
+            updatePlayerFoldCount();
         }
         else {
-            
+            updatePlayerBetData(player.id);
             //found player to take next turn;
             if (player.bet == null || player.bet < curBet) {
                 gameList[gameId].playerTurn = pointer;
                 if (botId == playerArray[gameList[gameId].playerTurn]) {	
-                    botTurn(socket);	
+                    console.log('testing 1')
+                    botTurn(socket);
                 }
                 return;
             }
-            //betting phase is over
+            //betting phase is over( there are 4 betting phases in a hand)
             else if (player.bet == curBet) {
                 setNextPhase(socket, gameId);
-                var curDealer = gameList[gameId].dealerId;
-                gameList[gameId].dealerId = (curDealer + 1) % numPlayers;
                 gameList[gameId].playerTurn = gameList[gameId].dealerId;
                 if (botId == playerArray[gameList[gameId].playerTurn]) {
+                    console.log('testing 2')
                     botTurn(socket);
                 }
                 return;
@@ -538,6 +634,7 @@ function calculateNextTurn(socket, gameId) {
 
         }
     }
+    console.log('everyone has folded?')
     //this means everyone has folded TODO
     calculateHandResult(gameId);
 }
@@ -545,9 +642,9 @@ function calculateNextTurn(socket, gameId) {
 function botTurn(socket) {	
     let botHandVal = calculateHandValue(socket.gameId, botId);	
     let recentBet = gameList[socket.gameId].recentBet;	
-    let bet = calculateBotBet(recentBet, botHandVal);	
+    let bet = calculateBotBet(recentBet, botHandVal, socket.gameId);	
     console.log("bot turn bet = " + bet);	
-    console.log("bot cur hand val = " + botHandVal);	
+    // console.log("bot cur hand val = " + botHandVal);	
     playerList[botId].bet = bet;	
     playerList[botId].balance -= bet;	
      	
@@ -561,18 +658,19 @@ function botTurn(socket) {
     //fold	
     if (bet == -1) {	
         message = playerList[botId].name + " folded";	
-        console.log("bot folded");	
+        playerList[socket.realId].inhand = false;
+        // console.log("bot folded");	
     }	
     //call	
     else if (bet == recentBet) {	
         message = playerList[botId].name + " called";	
-        console.log("bot called");	
+        // console.log("bot called");	
     }	
     //raise	
     else {	
         gameList[socket.gameId].recentBet = bet;	
         message = playerList[botId].name + " bet: " + bet;	
-        console.log("bot raised");	
+        // console.log("bot raised");	
     }	
     gameList[socket.gameId].history.push({	
         playerId: botId,	
@@ -580,46 +678,181 @@ function botTurn(socket) {
         message: message,	
     });	
     io.to(socket.gameId).emit("updateGame", {	
-        pastMoveText: gameList[socket.gameId].history[gameList[socket.gameId].history.length - 1].message,	
+        text: gameList[socket.gameId].history[gameList[socket.gameId].history.length - 1].message,	
     });	
     //get next player turn from folds and such	
     calculateNextTurn(socket, socket.gameId);	
-    updatePlayerArray(socket.gameId);	
-}	
-function calculateBotBet(recentBet, botHandVal) {	
+    updatePlayerArray(socket.gameId);
+}
+
+function calculateBotBet(recentBet, botHandVal, gameId) {	
     //fix this later 	
     //check all in behavior	
-    //change it to % of recentBet instead of numbers	
+    let curPhase = gameList[gameId].phase;
     let bet = 0;	
-    if (botHandVal == undefined) {	
-        bet = recentBet + 1;	
-    } else if (botHandVal < 100000000) {	
-        bet = recentBet;	
-    } else if (botHandVal < 200000000) {	
-        bet = recentBet + 1;	
-    } else if (botHandVal < 300000000) {	
-        bet = recentBet + 2;	
-    } else if (botHandVal < 400000000) {	
-        bet = recentBet + 3;	
-    } else if (botHandVal < 500000000) {	
-        bet = recentBet + 4;	
-    } else if (botHandVal < 600000000) {	
-        bet = recentBet + 5;	
-    } else if (botHandVal < 700000000) {	
-        bet = recentBet + 6;	
-    } else if (botHandVal < 800000000) {	
-        bet = recentBet + 7;	
-    } else if (botHandVal < 900000000) {	
-        bet = recentBet + 8;	
+    if (curPhase == 0) { //preflop betting
+        let cards = playerList[botId].cards;
+        console.log(cards)
+        
+        let num1;
+        let suit1;
+        let num2;
+        let suit2;
+        
+        if (cards[0].length == 3) {
+            num1 = convertCardValue(cards[0].substring(0, 2));
+            suit1 = cards[i].charAt(2);
+        } else {
+            num1 = convertCardValue(cards[0].charAt(0));
+            suit1 = cards[0].charAt(1);
+        }
+        if (cards[1].length == 3) {
+            num2 = convertCardValue(cards[1].substring(0, 2));
+            suit2 = cards[1].charAt(2);
+        } else {
+            num2 = convertCardValue(cards[1].charAt(0));
+            suit2 = cards[1].charAt(1);
+        }
+
+        console.log("Card 1: " + num1 + suit1);
+        console.log("Card 2: " + num2 + suit2);
+
+        //pair
+        if (num1 == num2) {
+            //if they call we should just bet like 10 else 
+            bet = 10;
+        }
+        
+        //2 of same suit
+        else if (suit1 == suit2) {
+            bet = 5;
+        }
+        
+        //high card
+        else if (num1 >= 13 || num2 >= 13 || (num1 > 10 && num2 > 10)) {
+            bet = 5;
+        } 
+        else {
+            //call here
+            bet = recentBet;
+        }
+        
+    } else if (curPhase == 1) { //flop betting
+        if (botHandVal == undefined) { //but this shouldn't happen ?
+            bet = -1;
+        } else if (botHandVal < 100000000) {	
+            bet = recentBet; 
+        } else if (botHandVal < 200000000) {	
+            bet = recentBet * 1.1;
+        } else if (botHandVal < 300000000) {	
+            bet = recentBet * 1.15;
+        } else if (botHandVal < 400000000) {	
+            bet = recentBet * 1.2;
+        } else if (botHandVal < 500000000) {
+            if (recentBet == 0) {
+                bet = 5
+            } else {
+                bet = recentBet * 1.25;
+            }
+        } else if (botHandVal < 600000000) {
+            if (recentBet == 0) {
+                bet = 6
+            } else {
+                bet = recentBet * 1.4;
+            }
+        } else if (botHandVal < 700000000) {
+            if (recentBet == 0) {
+                bet = 7
+            } else {
+                bet = recentBet * 2;
+            }
+        } else if (botHandVal < 800000000) {
+            if (recentBet == 0) {
+                bet = 8
+            }	
+            else bet = recentBet * 2.5;
+        } else if (botHandVal < 900000000) {
+            if (recentBet == 0) {
+                bet = 9
+            } else {
+                bet = recentBet * 3;
+            }
+        }
+    } else if (curPhase == 2) { //turn betting
+        if (botHandVal == undefined) { //but this shouldn't happen ?
+            bet = recentBet + 1;
+        } else if (botHandVal < 200000000) {
+            bet = -1;
+        } else if (botHandVal < 200000000) {
+            bet = recentBet; //call 
+        } else if (botHandVal < 300000000) {
+            bet = recentBet * 1.1;
+        } else if (botHandVal < 400000000) {
+            bet = recentBet * 1.2;
+        } else if (botHandVal < 500000000) {
+            bet = recentBet * 1.25;
+        } else if (botHandVal < 600000000) {
+            if (recentBet == 0) {
+                bet = 5;
+            } else {
+                bet = recentBet * 1.4;
+            }
+        } else if (botHandVal < 700000000) {
+            if (recentBet == 0) {
+                bet = 6;
+            } else {
+                bet = recentBet * 1.8;
+            }
+        } else if (botHandVal < 800000000) {
+            if (recentBet == 0) {
+                bet = 7;
+            } else {
+                bet = recentBet * 2;
+            }
+        } else if (botHandVal < 900000000) {
+            if (recentBet == 0) {
+                bet = 5;
+            } else {
+                bet = recentBet * 2.5;
+            }
+        }
+    } else if (curPhase == 3) { //river betting
+        if (botHandVal == undefined) { //but this shouldn't happen ?
+            bet = recentBet;
+        } else if (botHandVal < 200000000) {
+            bet = -1;
+        } else if (botHandVal < 300000000) {
+            bet = recentBet;
+        } else if (botHandVal < 400000000) {
+            bet = recentBet * 1.15;
+        } else if (botHandVal < 500000000) {
+            bet = recentBet * 1.25;
+        } else if (botHandVal < 600000000) {
+            bet = recentBet * 1.4;
+        } else if (botHandVal < 700000000) {
+            if (recentBet == 0) {
+                bet = 5;
+            } else {
+                bet = recentBet * 1.7;
+            }
+        } else if (botHandVal < 800000000) {
+            if (recentBet == 0) {
+                bet = 7;
+            } else {
+                bet = recentBet * 1.85;
+            }
+        } else if (botHandVal < 900000000) {
+            if (recentBet == 0) {
+                bet = 9;
+            } else {
+                bet = recentBet * 2;
+            }
+        }
+    } 
+    if (bet > playerList[botId].balance) {
+        return playerList[botId].balance;
     }	
-    	
-    if (bet > playerList[botId].balance) {	
-        if (playerList[botId].balance < recentBet) {	
-            return 0;	
-        }	
-        return playerList[botId].balance;	
-    }	
-    return bet;	
+    return Math.round(bet);	
     	
 }
 
@@ -690,7 +923,6 @@ io.on("connection", function (socket) {
     socket.on("playWithBot", function (data) {	
         console.log("called play with bot");	
         createBotPlayer(socket, data.gameId);	
-        console.log(gameList[data.gameId].numPlayers);	
         if (gameList[data.gameId].numPlayers > 1) {	
             gameList[data.gameId].gameInProgress = true;	
             io.to(data.gameId).emit("displayPlayButtons");	
@@ -708,27 +940,30 @@ io.on("connection", function (socket) {
         //cast the string to int
         data.bet = + data.bet;
         if (socket.realId == playerArray[gameList[socket.gameId].playerTurn]) {
-            //bet needs to be greater than previous bet.
-            if (data.bet != 0 && data.bet < gameList[socket.gameId].recentBet) {
-                socket.emit("addToChat", "<b> Invalid Bet <b>");
-                return -1;
+            let turnStartTime = Date.now();
+            //set call behavior
+            if (data.bet === -2) {
+                data.bet = gameList[socket.gameId].recentBet
             }
-            let betDiff = data.bet - playerList[socket.realId].bet;
-            playerList[socket.realId].bet = data.bet;
-            playerList[socket.realId].balance -= betDiff;
-
-            gameList[data.gameId].pot += betDiff;
-            io.to(data.gameId).emit('setPot', {
-                pot: gameList[data.gameId].pot
-            })
-
-            socket.emit('setBalance', {
-                balance:playerList[socket.realId].balance
-            });
+            if (data.bet !== -1) {
+                let betDiff = data.bet - playerList[socket.realId].bet;
+                playerList[socket.realId].bet = data.bet;
+                playerList[socket.realId].balance -= betDiff;
+    
+                gameList[data.gameId].pot += betDiff;
+                io.to(data.gameId).emit('setPot', {
+                    pot: gameList[data.gameId].pot
+                })
+    
+                socket.emit('setBalance', {
+                    balance:playerList[socket.realId].balance
+                });
+            }
 
             //fold
             if (data.bet == -1) {
                 message = playerList[socket.realId].name + " folded";
+                playerList[socket.realId].inhand = false;
             }
             //call
             else if (data.bet == gameList[socket.gameId].recentBet) {
@@ -739,7 +974,8 @@ io.on("connection", function (socket) {
                 gameList[socket.gameId].recentBet = data.bet;
                 message = playerList[socket.realId].name + " bet: " + data.bet;
             }
-
+            let turnEndTime = Date.now();
+            updatePlayerTimeToBet(socket.realId, turnEndTime - turnStartTime);
             gameList[socket.gameId].history.push({
                 playerId: socket.realId,
                 bet: data.bet,
