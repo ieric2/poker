@@ -135,7 +135,7 @@ class Game {
         this.endTimeMs = Date.now();
     }
     setEndPhase(phase) {
-        this.setEndPhase = phase;
+        this.endPhase = phase;
     }
 }
 class PlayerData {
@@ -150,6 +150,8 @@ class PlayerData {
         this.avgTimeToBet = null;
         this.lastTimeToBet = 0;
         this.numBets = 0;
+        this.turnStartTime = Date.now();
+        this.turnEndTime = 0;
         //this.games = null;
     }
     setAvgGameLength(curLength) {
@@ -162,7 +164,9 @@ class PlayerData {
     }
     setPlayerBidValues(currBid) {
         if (this.lowestBid == null || currBid < this.lowestBid) {
-            this.lowestBid = currBid;
+            if (currBid > 0) {
+                this.lowestBid = currBid;
+            }
         } 
         if (this.highestBid == null || currBid > this.highestBid) {
             this.highestBid = currBid;
@@ -172,19 +176,30 @@ class PlayerData {
         this.numGames++;
     }
     addWin() {
-        this.numWims++;
+        this.numWins++;
     }
     addFold() {
         this.numFolds++;
     }
-    setLastTimeToBet(time) {
-        this.lastTimeToBet = time;
+    setLastTimeToBet(turnLength) {
+        this.lastTimeToBet = turnLength;
         if (this.avgTimeToBet == null) {
-            this.avgTimeToBet = time;
+            this.avgTimeToBet = turnLength;
+            console.log("turnLength 1st: " + turnLength);
+            console.log("avgTime 1st: " + this.avgTimeToBet);
         } else {
-            this.avgTimeToBet = ((this.avgTimeToBet * this.numBets) + time) / (this.numBets + 1);            
+            console.log("turnLength: " + turnLength);
+            console.log("numBets: " + this.numBets);
+            console.log("avgTime: " + this.avgTimeToBet);
+            this.avgTimeToBet = ((this.avgTimeToBet * this.numBets) + turnLength) / (this.numBets + 1);            
         }
         this.numBets++;
+    }
+    setTurnStartTime() {
+        this.turnStartTime = Date.now();
+    }
+    setTurnEndTime() {
+        this.turnEndTime = Date.now();
     }
     
 }
@@ -308,8 +323,23 @@ function updatePlayerGameTime(playerId, gameId) {
     let gameLength = gameList[gameId].endTimeMs - gameList[gameId].startTimeMs;
     playerDataList[playerId].setAvgGameLength(gameLength);
 }
-function updatePlayerTimeToBet(playerId, time) {
-    playerDataList[playerId].setLastTimeToBet(time);
+function updatePlayerTimeToBet(playerId) {
+    let turnLength = playerDataList[playerId].turnEndTime - playerDataList[playerId].turnStartTime;
+    playerDataList[playerId].setLastTimeToBet(turnLength);
+}
+function printStats(playerId, gameId) {
+    console.log("Player Stats: ");
+    console.log("Average game length: " + playerDataList[playerId].avgGameLength);
+    console.log("Highest bid: " + playerDataList[playerId].highestBid);
+    console.log("Lowerst bid: " + playerDataList[playerId].lowestBid);
+    console.log("Average time to bet: " + playerDataList[playerId].avgTimeToBet);
+    console.log("Number of wins: " + playerDataList[playerId].numWins);
+    console.log("Number of folds: " + playerDataList[playerId].numFolds);
+
+    console.log("Game " + gameId + " Stats:");
+    let length = gameList[gameId].endTimeMs - gameList[gameId].startTimeMs;
+    console.log("Length: " +  length);
+    console.log("Last phase in game: " + gameList[gameId].endPhase);
 }
 function calculateHandValue(gameId, playerId) {
     let player = playerList[playerId];
@@ -520,6 +550,7 @@ function calculateHandResult(gameId) {
         })
         updatePlayerWinCount(playerId);
         updatePlayerGameTime(playerId, gameId);
+        printStats(playerId, gameId);
     }
     io.to(gameId).emit('setPot', {
         pot: 0
@@ -616,13 +647,15 @@ function calculateNextTurn(socket, gameId) {
             updatePlayerFoldCount();
         }
         else {
-            updatePlayerBetData(player.id);
             //found player to take next turn;
             if (player.bet == null || player.bet < curBet) {
                 gameList[gameId].playerTurn = pointer;
                 if (botId == playerArray[gameList[gameId].playerTurn]) {	
                     console.log('testing 1')
                     botTurn(socket);
+                }
+                else {
+                    playerDataList[playerArray[gameList[gameId].playerTurn]].setTurnStartTime();
                 }
                 return;
             }
@@ -946,7 +979,7 @@ io.on("connection", function (socket) {
         //cast the string to int
         data.bet = + data.bet;
         if (socket.realId == playerArray[gameList[socket.gameId].playerTurn]) {
-            let turnStartTime = Date.now();
+            updatePlayerBetData(socket.realId, data.bet);
             //set call behavior
             if (data.bet === -2) {
                 data.bet = gameList[socket.gameId].recentBet
@@ -982,8 +1015,8 @@ io.on("connection", function (socket) {
                 gameList[socket.gameId].recentBet = data.bet;
                 message = playerList[socket.realId].name + " bet: " + data.bet;
             }
-            let turnEndTime = Date.now();
-            updatePlayerTimeToBet(socket.realId, turnEndTime - turnStartTime);
+            playerDataList[socket.realId].setTurnEndTime();
+            updatePlayerTimeToBet(socket.realId);
             gameList[socket.gameId].history.push({
                 playerId: socket.realId,
                 bet: data.bet,
