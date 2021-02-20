@@ -491,6 +491,7 @@ function calculateHandValue(gameId, playerId) {
     }
 }
 function calculateHandResult(gameId) {
+    console.log("calcualte hand result")
     let playerIds = gameList[gameId].players
     let winners = [];
     let maxScore = 0;
@@ -589,10 +590,14 @@ function calculateNextTurn(socket, gameId) {
     //checking if everyone folded
     let numActivePlayers = 0;
     for (let i = 0; i < players.length; i++) {
+        console.log(playerList[players[i]])
+
         if (playerList[players[i]].bet !== -1) {
             numActivePlayers++;
         }
     }
+    console.log("numplayers: ")
+    console.log(numActivePlayers)
     if (numActivePlayers == 1) {
         console.log('everyone folded??');
         gameList[gameId].phase = 3;
@@ -658,6 +663,7 @@ function botTurn(socket) {
     //fold	
     if (bet == -1) {	
         message = playerList[botId].name + " folded";	
+        playerList[botId].bet = bet;
         playerList[socket.realId].inhand = false;
         // console.log("bot folded");	
     }	
@@ -945,6 +951,7 @@ io.on("connection", function (socket) {
             if (data.bet === -2) {
                 data.bet = gameList[socket.gameId].recentBet
             }
+            //set normal behavior
             if (data.bet !== -1) {
                 let betDiff = data.bet - playerList[socket.realId].bet;
                 playerList[socket.realId].bet = data.bet;
@@ -962,6 +969,7 @@ io.on("connection", function (socket) {
 
             //fold
             if (data.bet == -1) {
+                playerList[socket.realId].bet = data.bet;
                 message = playerList[socket.realId].name + " folded";
                 playerList[socket.realId].inhand = false;
             }

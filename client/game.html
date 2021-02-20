@@ -64,10 +64,11 @@
                     <button class="btn btn-primary btn-lg" type="button" onclick="onFold()">Fold</button>
                 </form>
                 
-                <div class='buttonRow'>
-                    <button id="startGameButton" class="btn btn-primary btn-lg centerScreen" type="button" onclick="startGame()">Start Game</button>
-                    <div class="buttonDivider"></div>
-                    <button id="playWithBotButton" class="btn btn-primary btn-lg centerScreen" type="button" onclick="playWithBot()">Play With Bot</button>
+                <div class='buttonRow' style="text-align:center">
+                    <button id="startGameButton" class="btn btn-primary btn-lg" type="button" onclick="startGame()">Start Game</button>
+                    <!-- <div class="buttonDivider"></div> -->
+                    <input type="checkbox" id="playWithBotButton" name="playWithBotButton" value="Bot">
+                    <label id="botButtonLabel" for="playWithBotButton"> Play With Bot</label><br>
                 </div>
             </div>
             <text>Made by: ieric, cathxu, anayat</text>
@@ -95,6 +96,7 @@
         const betInput = document.getElementById('betInput')
         const startGameButton = document.getElementById("startGameButton")
         const playWithBotButton = document.getElementById("playWithBotButton")
+        const botButtonLabel = document.getElementById("botButtonLabel")
 
         const chatForm = document.getElementById("chatForm");
         const chatInput = document.getElementById("chatInput");
@@ -132,27 +134,33 @@
         socket.emit('roomEntered', {gameId: window.location.pathname.split('/')[2]})     
 
         function startGame(){
-            console.log("starting game");
-            socket.emit('startGame', {gameId: gameId});
+            if (playWithBotButton.checked) {
+                console.log("starting game with bot");
+                socket.emit('playWithBot', {gameId: gameId});
+            }
+            else {
+                console.log("starting game");
+                socket.emit('startGame', {gameId: gameId});
+            }
         }
 
         function playWithBot(){
-            console.log("starting game with bot");
-            socket.emit('playWithBot', {gameId: gameId});
+
         }
 
         function playTurn(){
-            var bet = betInput.value;
+            const bet = betInput.value;
             socket.emit("playTurn", {bet: bet, gameId: gameId});
         }
 
         function onCall() {
-            socket.emit("playTurn", {bet:bet, gameId: gameId});
+            const bet = -2
+            socket.emit("playTurn", {bet: bet, gameId: gameId});
         }
         
         function onFold() {
-            var bet = -1;
-            socket.emit("playTurn", {bet:bet, gameId: gameId});
+            const bet = -1;
+            socket.emit("playTurn", {bet: bet, gameId: gameId});
         }
 
         function castDoubt(){
@@ -235,6 +243,7 @@
             bettingForm.style.display = "block"
             startGameButton.style.display = "none"
             playWithBotButton.style.display = "none"
+            botButtonLabel.style.display = "none"
         })
 
         socket.on("updatePlayerArray", function(data){
