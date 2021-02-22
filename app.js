@@ -36,6 +36,7 @@ class Game {
         this.numPlayers = 0;
         this.history = [];
         this.recentBet = 0;
+        this.called = false;
         this.playerTurn = null;
         this.dealerId = null;
         this.nextCardIndex = 0;
@@ -266,6 +267,7 @@ function drawCards(gameId) {
 function setupHand(gameId) {
     gameList[gameId].shuffle();
     gameList[gameId].recentBet = 0;
+    gameList[gameId].called = false;
     //TODO:: fix playerturn
     gameList[gameId].playerTurn = 0;
     gameList[gameId].dealerId = 0;    
@@ -607,6 +609,7 @@ function setNextPhase(socket, gameId) {
         gameList[gameId].phase++; 
         gameList[gameId].history = [];
         gameList[gameId].recentBet = 0;
+        gameList[gameId].called = false;
         let players = gameList[gameId].players
         for (let playerId of players) {
             playerList[playerId].bet = null;
@@ -680,7 +683,8 @@ function calculateNextTurn(socket, gameId) {
 function botTurn(socket) {	
     let botHandVal = calculateHandValue(socket.gameId, botId);	
     let recentBet = gameList[socket.gameId].recentBet;	
-    let bet = calculateBotBet(recentBet, botHandVal, socket.gameId);	
+    let called = gameList[socket.gameId].called;
+    let bet = calculateBotBet(recentBet, called, botHandVal, socket.gameId);	
     console.log("bot turn bet = " + bet);	
     // console.log("bot cur hand val = " + botHandVal);	
     playerList[botId].bet = bet;	
@@ -724,7 +728,7 @@ function botTurn(socket) {
     updatePlayerArray(socket.gameId);
 }
 
-function calculateBotBet(recentBet, botHandVal, gameId) {	
+function calculateBotBet(recentBet, called, botHandVal, gameId) {	
     //fix this later 	
     //check all in behavior	
     let curPhase = gameList[gameId].phase;
@@ -779,7 +783,7 @@ function calculateBotBet(recentBet, botHandVal, gameId) {
     } else if (curPhase == 1) { //flop betting
         if (botHandVal == undefined) { //but this shouldn't happen ?
             bet = -1;
-        } else if (botHandVal < 100000000) {	
+        } else if (botHandVal < 100000000 || called) {	
             bet = recentBet; 
         } else if (botHandVal < 200000000) {	
             bet = recentBet * 1.1;
@@ -820,6 +824,8 @@ function calculateBotBet(recentBet, botHandVal, gameId) {
     } else if (curPhase == 2) { //turn betting
         if (botHandVal == undefined) { //but this shouldn't happen ?
             bet = recentBet + 1;
+        } else if (called && botHandVal < 400000000) {
+            bet = recentBet;
         } else if (botHandVal < 200000000) {
             bet = -1;
         } else if (botHandVal < 200000000) {
@@ -857,6 +863,8 @@ function calculateBotBet(recentBet, botHandVal, gameId) {
         }
     } else if (curPhase == 3) { //river betting
         if (botHandVal == undefined) { //but this shouldn't happen ?
+            bet = recentBet;
+        } else if (called && botHandVal < 500000000) {
             bet = recentBet;
         } else if (botHandVal < 200000000) {
             bet = -1;
@@ -1005,15 +1013,18 @@ io.on("connection", function (socket) {
                 playerList[socket.realId].bet = data.bet;
                 message = playerList[socket.realId].name + " folded";
                 playerList[socket.realId].inhand = false;
+                gamelist[socket.gameId].called = false;
             }
             //call
             else if (data.bet == gameList[socket.gameId].recentBet) {
                 message = playerList[socket.realId].name + " called";
+                gameList[socket.gameId].called = true;
             }
             //raise
             else {
                 gameList[socket.gameId].recentBet = data.bet;
                 message = playerList[socket.realId].name + " bet: " + data.bet;
+                gameList[socket.gameId].called = false;
             }
             playerDataList[socket.realId].setTurnEndTime();
             updatePlayerTimeToBet(socket.realId);
