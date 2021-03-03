@@ -159,7 +159,7 @@ class PlayerData {
         if (this.avgGameLength == null) {
             this.avgGameLength = curLength;
         } else {
-            this.avgGameLength = ((this.avgGameLength * numGames) + curLength) / (numGames + 1);
+            this.avgGameLength = ((this.avgGameLength * this.numGames) + curLength) / (this.numGames + 1);
         }
         this.addGame();
     }
@@ -270,14 +270,17 @@ function setupHand(gameId) {
     gameList[gameId].called = false;
     //TODO:: fix playerturn
     gameList[gameId].playerTurn = 0;
-    gameList[gameId].dealerId = 0;    
+    gameList[gameId].dealerId = 0; 
     gameList[gameId].nextCardIndex = 0;
     gameList[gameId].pot = 0;
     gameList[gameId].history = [];
     gameList[gameId].communityCards = [];
+    gameList[gameId].called = false;
+    gameList[gameId].startTimeMs = Date.now();
     drawCards(gameId);
-    for (var i in gameList[gameId].players) {
+    for (var i in gameList[gameId].players) { 
         const playerId = gameList[gameId].players[i];
+        console.log("Player ID: " + playerId);
         playerList[playerId].inHand = true;
         io.to(playerId).emit("newHand", {
             cards: playerList[playerId].cards,
@@ -570,7 +573,7 @@ function calculateHandResult(gameId) {
     io.to(gameId).emit('updateGame', {
         text: winnerText
     })
-    setupHand(gameId)    
+    setupHand(gameId)  
 }
 //where 0 - preflop betting, 1 - flop betting, 2 - turn betting, 3 - river betting
 function setNextPhase(socket, gameId) {
@@ -653,8 +656,9 @@ function calculateNextTurn(socket, gameId) {
             //found player to take next turn;
             if (player.bet == null || player.bet < curBet) {
                 gameList[gameId].playerTurn = pointer;
-                if (botId == playerArray[gameList[gameId].playerTurn]) {	
-                    console.log('testing 1')
+                if (playerList[players[pointer]].isBot) {
+                    //botId == playerArray[gameList[gameId].playerTurn]) {	
+                    console.log('testing 1');
                     botTurn(socket);
                 }
                 else {
@@ -666,9 +670,12 @@ function calculateNextTurn(socket, gameId) {
             else if (player.bet == curBet) {
                 setNextPhase(socket, gameId);
                 gameList[gameId].playerTurn = gameList[gameId].dealerId;
-                if (botId == playerArray[gameList[gameId].playerTurn]) {
-                    console.log('testing 2')
+                if (playerList[players[pointer]].isBot) {
+                    console.log('testing 2');
                     botTurn(socket);
+                }
+                else {
+                    playerDataList[playerArray[gameList[gameId].playerTurn]].setTurnStartTime();
                 }
                 return;
             }
@@ -744,7 +751,7 @@ function calculateBotBet(recentBet, called, botHandVal, gameId) {
         
         if (cards[0].length == 3) {
             num1 = convertCardValue(cards[0].substring(0, 2));
-            suit1 = cards[i].charAt(2);
+            suit1 = cards[0].charAt(2);
         } else {
             num1 = convertCardValue(cards[0].charAt(0));
             suit1 = cards[0].charAt(1);
@@ -969,7 +976,7 @@ io.on("connection", function (socket) {
     	
     socket.on("playWithBot", function (data) {	
         console.log("called play with bot");	
-        createBotPlayer(socket, data.gameId);	
+        createBotPlayer(socket, data.gameId);
         if (gameList[data.gameId].numPlayers > 1) {	
             gameList[data.gameId].gameInProgress = true;	
             io.to(data.gameId).emit("displayPlayButtons");	
