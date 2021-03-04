@@ -1012,7 +1012,7 @@ io.on("connection", function (socket) {
                 playerList[socket.realId].bet = data.bet;
                 message = playerList[socket.realId].name + " folded";
                 playerList[socket.realId].inhand = false;
-                gamelist[socket.gameId].called = false;
+                gameList[socket.gameId].called = false;
             }
             //call
             else if (data.bet == gameList[socket.gameId].recentBet) {
