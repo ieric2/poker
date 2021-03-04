@@ -13,7 +13,7 @@ app.get("/game/:roomId", function (req, res) {
     res.sendFile(__dirname + "/client/game.html");
 });
 app.use("/client", express.static(__dirname + "/client"));
-console.log("Server started.");
+//console.log("Server started.");
 class Player {
     constructor(id, isBot) {
         this.id = id;
@@ -280,8 +280,8 @@ function setupHand(gameId) {
     drawCards(gameId);
     for (var i in gameList[gameId].players) { 
         const playerId = gameList[gameId].players[i];
-        console.log("Player ID: " + playerId);
         playerList[playerId].inHand = true;
+        playerList[playerId].bet = 0;
         io.to(playerId).emit("newHand", {
             cards: playerList[playerId].cards,
         });
@@ -333,6 +333,8 @@ function updatePlayerTimeToBet(playerId) {
     playerDataList[playerId].setLastTimeToBet(turnLength);
 }
 function printStats(playerId, gameId) {
+    let length = gameList[gameId].endTimeMs - gameList[gameId].startTimeMs;
+
     console.log("Player Stats: ");
     console.log("Average game length: " + playerDataList[playerId].avgGameLength);
     console.log("Highest bid: " + playerDataList[playerId].highestBid);
@@ -342,7 +344,6 @@ function printStats(playerId, gameId) {
     console.log("Number of folds: " + playerDataList[playerId].numFolds);
 
     console.log("Game " + gameId + " Stats:");
-    let length = gameList[gameId].endTimeMs - gameList[gameId].startTimeMs;
     console.log("Length: " +  length);
     console.log("Last phase in game: " + gameList[gameId].endPhase);
 }
@@ -526,7 +527,6 @@ function calculateHandValue(gameId, playerId) {
     }
 }
 function calculateHandResult(gameId) {
-    console.log("calcualte hand result")
     let playerIds = gameList[gameId].players
     let winners = [];
     let maxScore = 0;
@@ -537,7 +537,6 @@ function calculateHandResult(gameId) {
             continue;
         }
         let curScore = calculateHandValue(gameId, playerId);
-        console.log(playerId + ": " + curScore)
         if (curScore > maxScore) {
             winners = [];
             winners.push(playerId);
@@ -547,7 +546,6 @@ function calculateHandResult(gameId) {
             winners.push(playerId);
         }
     }
-    console.log(winners)
     for (let playerId of winners) {
         playerList[playerId].balance += gameList[gameId].pot / winners.length;
         io.to(playerId).emit('setBalance', {
@@ -578,7 +576,6 @@ function calculateHandResult(gameId) {
 //where 0 - preflop betting, 1 - flop betting, 2 - turn betting, 3 - river betting
 function setNextPhase(socket, gameId) {
     let curPhase = gameList[gameId].phase;
-    console.log('curPhase ' + curPhase)
     let dealtCards = [];
     if (curPhase == 3) {
         calculateHandResult(gameId);
@@ -627,16 +624,13 @@ function calculateNextTurn(socket, gameId) {
     //checking if everyone folded
     let numActivePlayers = 0;
     for (let i = 0; i < players.length; i++) {
-        console.log(playerList[players[i]])
 
         if (playerList[players[i]].bet !== -1) {
             numActivePlayers++;
         }
     }
-    console.log("numplayers: ")
-    console.log(numActivePlayers)
     if (numActivePlayers == 1) {
-        console.log('everyone folded??');
+        //console.log('everyone folded??');
         gameList[gameId].phase = 3;
         setNextPhase(socket, gameId);
         return;
@@ -644,7 +638,6 @@ function calculateNextTurn(socket, gameId) {
 
     //check if betting round is over
     let pointer = (curTurn + 1) % numPlayers;
-    console.log(curTurn)
     while(pointer != curTurn) {
         let player = playerList[players[pointer]];
         //player has folded
@@ -658,7 +651,6 @@ function calculateNextTurn(socket, gameId) {
                 gameList[gameId].playerTurn = pointer;
                 if (playerList[players[pointer]].isBot) {
                     //botId == playerArray[gameList[gameId].playerTurn]) {	
-                    console.log('testing 1');
                     botTurn(socket);
                 }
                 else {
@@ -671,7 +663,6 @@ function calculateNextTurn(socket, gameId) {
                 setNextPhase(socket, gameId);
                 gameList[gameId].playerTurn = gameList[gameId].dealerId;
                 if (playerList[players[pointer]].isBot) {
-                    console.log('testing 2');
                     botTurn(socket);
                 }
                 else {
@@ -682,7 +673,6 @@ function calculateNextTurn(socket, gameId) {
 
         }
     }
-    console.log('everyone has folded?')
     //this means everyone has folded TODO
     calculateHandResult(gameId);
 }
@@ -693,7 +683,6 @@ function botTurn(socket) {
     let called = gameList[socket.gameId].called;
     let bet = calculateBotBet(recentBet, called, botHandVal, socket.gameId);	
     console.log("bot turn bet = " + bet);	
-    // console.log("bot cur hand val = " + botHandVal);	
     playerList[botId].bet = bet;	
     playerList[botId].balance -= bet;	
      	
@@ -742,7 +731,7 @@ function calculateBotBet(recentBet, called, botHandVal, gameId) {
     let bet = 0;	
     if (curPhase == 0) { //preflop betting
         let cards = playerList[botId].cards;
-        console.log(cards)
+        console.log('botCards: ' + cards)
         
         let num1;
         let suit1;
@@ -764,8 +753,8 @@ function calculateBotBet(recentBet, called, botHandVal, gameId) {
             suit2 = cards[1].charAt(1);
         }
 
-        console.log("Card 1: " + num1 + suit1);
-        console.log("Card 2: " + num2 + suit2);
+        // console.log("Card 1: " + num1 + suit1);
+        // //console.log("Card 2: " + num2 + suit2);
 
         //pair
         if (num1 == num2) {
@@ -912,14 +901,14 @@ function calculateBotBet(recentBet, called, botHandVal, gameId) {
 
 io.on("connection", function (socket) {
     socket.on("startSession", function (data) {
-        console.log("starting session");
+        //console.log("starting session");
 
         if (data.sessionId == null || !playerArray.includes(data.sessionId)) {
             socket.realId = socket.id;
             socketList[socket.id] = socket;
 
             createPlayer(socket);
-            console.log("new session");
+            //console.log("new session");
         } else {
             socket.realId = data.sessionId;
             playerList[socket.realId].active = true;
@@ -936,25 +925,25 @@ io.on("connection", function (socket) {
     });
 
     socket.on("roomEntered", function (data) {
-        console.log("room entered");
+        //console.log("room entered");
         if (createGame(socket, data.gameId) == -1) {
             joinGame(socket, data.gameId);
         }
     });
 
     socket.on("createGame", function (data) {
-        console.log("create game");
+        //console.log("create game");
         createGame(socket, data.gameId);
     });
 
     socket.on("joinGame", function (data) {
-        console.log("join game");
+        //console.log("join game");
         joinGame(socket, data.gameId);
     });
 
     socket.on("setName", function (data) {
         if (gameArray.includes(data.gameId)) {
-            console.log("setting name: " + data.name);
+            //console.log("setting name: " + data.name);
             playerList[socket.realId].setName(data.name);
             updatePlayerArray(data.gameId);
         }
@@ -975,7 +964,7 @@ io.on("connection", function (socket) {
     });
     	
     socket.on("playWithBot", function (data) {	
-        console.log("called play with bot");	
+        //console.log("called play with bot");	
         createBotPlayer(socket, data.gameId);
         if (gameList[data.gameId].numPlayers > 1) {	
             gameList[data.gameId].gameInProgress = true;	
@@ -993,7 +982,10 @@ io.on("connection", function (socket) {
     socket.on("playTurn", function (data) {
         //cast the string to int
         data.bet = + data.bet;
-        if (socket.realId == playerArray[gameList[socket.gameId].playerTurn]) {
+        if (data.bet > 0 && gameList[socket.gameId].recentBet > data.bet) {
+            socket.emit("addToChat", "<b> insufficent bet </b>")
+        }
+        else if (socket.realId == playerArray[gameList[socket.gameId].playerTurn]) {
             updatePlayerBetData(socket.realId, data.bet);
             //set call behavior
             if (data.bet === -2) {
