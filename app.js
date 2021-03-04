@@ -347,10 +347,10 @@ function printStats(playerId, gameId) {
     console.log("Length: " +  length);
     console.log("Last phase in game: " + gameList[gameId].endPhase);
 }
-function calculateHandValue(gameId, playerId) {
+function calculateHandValue(gameId, playerId, displayHand) {
     let player = playerList[playerId];
     let cards = player.cards.concat(gameList[gameId].communityCards);
-    if (gameList[gameId].phase == 3) {
+    if (gameList[gameId].phase == 3 && displayHand) {
         io.to(gameId).emit('updateGame', {
             text: '' + player.name + ' had: ' + cards
         })    
@@ -535,7 +535,7 @@ function calculateHandValue(gameId, playerId) {
     return highCardValue;
 }
 function calculateHandResult(gameId) {
-    console.log('calculating hand result')
+    // console.log('calculating hand result')
     let playerIds = gameList[gameId].players
     let winners = [];
     let maxScore = 0;
@@ -545,8 +545,8 @@ function calculateHandResult(gameId) {
         if (playerList[playerId].bet == -1) {
             continue;
         }
-        let curScore = calculateHandValue(gameId, playerId);
-        console.log(curScore)
+        let curScore = calculateHandValue(gameId, playerId, true);
+        // console.log(curScore)
         if (curScore > maxScore) {
             winners = [];
             winners.push(playerId);
@@ -672,12 +672,7 @@ function calculateNextTurn(socket, gameId) {
             else if (player.bet == curBet) {
                 setNextPhase(socket, gameId);
                 gameList[gameId].playerTurn = gameList[gameId].dealerId;
-                if (playerList[players[pointer]].isBot) {
-                    botTurn(socket);
-                }
-                else {
-                    playerDataList[playerArray[gameList[gameId].playerTurn]].setTurnStartTime();
-                }
+                playerDataList[playerArray[gameList[gameId].playerTurn]].setTurnStartTime();
                 return;
             }
 
@@ -688,7 +683,7 @@ function calculateNextTurn(socket, gameId) {
 }
 
 function botTurn(socket) {	
-    let botHandVal = calculateHandValue(socket.gameId, botId);	
+    let botHandVal = calculateHandValue(socket.gameId, botId, false);	
     let recentBet = gameList[socket.gameId].recentBet;	
     let called = gameList[socket.gameId].called;
     let bet = calculateBotBet(recentBet, called, botHandVal, socket.gameId);	
