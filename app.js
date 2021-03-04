@@ -764,17 +764,29 @@ function calculateBotBet(recentBet, called, botHandVal, gameId) {
         //pair
         if (num1 == num2) {
             //if they call we should just bet like 10 else 
-            bet = 10;
+            if (recentBet <= 10) {
+                bet = 10;
+            } else {
+                bet = recentBet; 
+            }
         }
         
         //2 of same suit
         else if (suit1 == suit2) {
-            bet = 5;
+            if (recentBet <= 5) {
+                bet = 5;
+            } else {
+                bet = recentBet;
+            }
         }
         
         //high card
         else if (num1 >= 13 || num2 >= 13 || (num1 > 10 && num2 > 10)) {
-            bet = 5;
+            if (recentBet <= 3) {
+                bet = 3;
+            } else {
+                bet = recentBet;
+            }
         } 
         else {
             //call here
@@ -793,30 +805,30 @@ function calculateBotBet(recentBet, called, botHandVal, gameId) {
         } else if (botHandVal < 400000000) {	
             bet = recentBet * 1.2;
         } else if (botHandVal < 500000000) {
-            if (recentBet == 0) {
+            if (called && recentBet <= 5) {
                 bet = 5
             } else {
                 bet = recentBet * 1.25;
             }
         } else if (botHandVal < 600000000) {
-            if (recentBet == 0) {
+            if (called && recentBet <= 6) {
                 bet = 6
             } else {
                 bet = recentBet * 1.4;
             }
         } else if (botHandVal < 700000000) {
-            if (recentBet == 0) {
+            if (called && recentBet <= 7) {
                 bet = 7
             } else {
                 bet = recentBet * 2;
             }
         } else if (botHandVal < 800000000) {
-            if (recentBet == 0) {
+            if (called && recentBet <= 8) {
                 bet = 8
             }	
             else bet = recentBet * 2.5;
         } else if (botHandVal < 900000000) {
-            if (recentBet == 0) {
+            if (called && recentBet <= 9) {
                 bet = 9
             } else {
                 bet = recentBet * 3;
@@ -838,26 +850,26 @@ function calculateBotBet(recentBet, called, botHandVal, gameId) {
         } else if (botHandVal < 500000000) {
             bet = recentBet * 1.25;
         } else if (botHandVal < 600000000) {
-            if (recentBet == 0) {
+            if (called && recentBet <= 5) {
                 bet = 5;
             } else {
                 bet = recentBet * 1.4;
             }
         } else if (botHandVal < 700000000) {
-            if (recentBet == 0) {
+            if (called && recentBet <= 6) {
                 bet = 6;
             } else {
                 bet = recentBet * 1.8;
             }
         } else if (botHandVal < 800000000) {
-            if (recentBet == 0) {
+            if (called && recentBet <= 7) {
                 bet = 7;
             } else {
                 bet = recentBet * 2;
             }
         } else if (botHandVal < 900000000) {
-            if (recentBet == 0) {
-                bet = 5;
+            if (called && recentBet <= 8) {
+                bet = 8;
             } else {
                 bet = recentBet * 2.5;
             }
@@ -878,19 +890,19 @@ function calculateBotBet(recentBet, called, botHandVal, gameId) {
         } else if (botHandVal < 600000000) {
             bet = recentBet * 1.4;
         } else if (botHandVal < 700000000) {
-            if (recentBet == 0) {
+            if (called && recentBet <= 5) {
                 bet = 5;
             } else {
                 bet = recentBet * 1.7;
             }
         } else if (botHandVal < 800000000) {
-            if (recentBet == 0) {
+            if (called && recentBet <= 7) {
                 bet = 7;
             } else {
                 bet = recentBet * 1.85;
             }
         } else if (botHandVal < 900000000) {
-            if (recentBet == 0) {
+            if (called && recentBet <= 9) {
                 bet = 9;
             } else {
                 bet = recentBet * 2;
