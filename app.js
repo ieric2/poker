@@ -542,7 +542,6 @@ function calculateHandResult(gameId) {
     gameList[gameId].setEndTimeMs();
     gameList[gameId].setEndPhase(gameList[gameId].phase);
     for (let playerId of playerIds) {
-        console.log(playerList[playerId].bet)
         if (playerList[playerId].bet == -1) {
             continue;
         }
@@ -557,7 +556,6 @@ function calculateHandResult(gameId) {
             winners.push(playerId);
         }
     }
-    console.log(winners)
     for (let playerId of winners) {
         playerList[playerId].balance += gameList[gameId].pot / winners.length;
         io.to(playerId).emit('setBalance', {
