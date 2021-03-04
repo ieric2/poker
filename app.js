@@ -508,35 +508,46 @@ function calculateHandValue(gameId, playerId) {
         }       
     }
     //high card
+    let highCardValue = 0;
     for (let i = 14; i >= 2; i--) {
         if (numCounts[i] >= 1) {
+            highCardValue += (1000000 * i)
             for (let j = i - 1; j >= 2; j--) {
                 if (numCounts[j] >= 1) {
+                    highCardValue += (10000 * j)
                     for (let k = j - 1; k >= 2; k--) {
                         if (numCounts[k] >= 1) {
+                            highCardValue += (100 * k)
                             for (let l = k - 1; l >= 2; l--) {
                                 if (numCounts[l] >= 1) {
-                                    return i * 1000000 + 10000 * j + 100 * k + l;
+                                    highCardValue += l;
+                                    break;
                                 }
                             }
+                            break;
                         }
                     }
+                    break;
                 }
             }
         }
     }
+    return highCardValue;
 }
 function calculateHandResult(gameId) {
+    console.log('calculating hand result')
     let playerIds = gameList[gameId].players
     let winners = [];
     let maxScore = 0;
     gameList[gameId].setEndTimeMs();
     gameList[gameId].setEndPhase(gameList[gameId].phase);
     for (let playerId of playerIds) {
+        console.log(playerList[playerId].bet)
         if (playerList[playerId].bet == -1) {
             continue;
         }
         let curScore = calculateHandValue(gameId, playerId);
+        console.log(curScore)
         if (curScore > maxScore) {
             winners = [];
             winners.push(playerId);
@@ -546,6 +557,7 @@ function calculateHandResult(gameId) {
             winners.push(playerId);
         }
     }
+    console.log(winners)
     for (let playerId of winners) {
         playerList[playerId].balance += gameList[gameId].pot / winners.length;
         io.to(playerId).emit('setBalance', {
