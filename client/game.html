@@ -17,27 +17,92 @@
     <div class="gameTitleTab">
         <h2>POKER</h2>
     </div>
+
+    <div class="container" style="height:0px; width 100%; flex-direction: row;"></div>
+        <div class='buttonRow' style="text-align:center; margin-top: 0px; margin-bottom: 5px;">
+            <button id="startGameButton" class="btn btn-primary btn-lg" type="button" onclick="startGame()">Start Game with Friends</button>
+            <button id="playWithBotButton" class="btn btn-primary btn-lg" type="button" onclick="playWithBot()">Start Game with Buddy the Bot</button>
+            <button id="instructions" class="btn btn-primary btn-lg" type="button">Instructions</button> 
+            <button id="cheatSheet" class="btn btn-primary btn-lg" type="button">Poker Hands Cheat Sheet</button> 
+        </div>
+    </div>
+    
+    <div id="instructionModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Welcome to Online Poker with AI!</h2>
+            <p></p>
+            <b>Starting a Game</b>
+            <p>There are two options to starting a game: playing with friends or playing with our AI Bot, Buddy! For playing with friends, you can invite your friends to the same session using the game code you created at the start. Once everyone has joined, you can start the game by pressing the button "Start Game with Friends". Or, you can try your hand against our bot Buddy by pressing "Start Game with Buddy the Bot"</p>
+
+            <b>Playing the Game</b>
+            <p>Your balance is the amount of money you start with at the beginning. When it's your turn, you can enter the amount of money you would like to bet and press bet. You can also call or fold using the buttons. We have some basic poker instructions below if you've never played before.</p> 
+            
+            <b>Additional Features</b>
+            <p>If playing with friends, you can use the chat feature on the right to chat! On the left, you can see who is in the game, as well as previous bets.</p>
+
+            <b>Some Poker Basics</b>
+
+            <p>There are three moves you can make when it is your turn: <br>
+                1. Call (Match the amount of the raise into the pot) <br>
+                2. Fold (Give up the hand and all the chips they’ve already put in the pot) <br>
+                3. Raise (Put even more chips into the pot) <br>
+            </p>
+            <p>This continues until everyone has called or all the chips are in the middle.</p>
+            
+            <p>Once the first betting round in complete the dealer deals three cards face-up on the board. These are community cards that anyone can use. This is called the flop.</p>
+            <p>Once again everyone still in the hand gets a chance to bet and consequently raise or fold. Once that betting round is complete he dealer puts a fourth card on the table that anyone can use. This is called the turn.</p>
+            <p>Again everyone gets the chance to bet/check/raise/fold. The dealer puts a fifth card on the board that anyone can use. This is called the river. For the final time everyone gets a chance to bet/check/raise/fold.</p>
+            <p>If more than one player is still left in the hand after the final betting hand the cards are exposed and the player with the highest ranked hand wins the pot. The hands are ranked according to the list below.</p>
+            
+            
+        </div>
+    </div>
+
+    <div id="pokerHandsModal" class="modal">
+        <div class="modal-content">
+            <span class="closeSheet">&times;</span>
+            <b>Poker Hand Rankings</b>
+            <p>1. Royal Flush (All the same suit, sequence A-K-Q-J-T) <br>
+            2. Straight Flush (Any sequence all the same suit, for instance 9-8-7-6-5) <br>
+            3. Four of a Kind (Four cards that are the same value, for instance A-A-A-A) <br>
+            4. Full House (Three of a kind AND a pair) <br>
+            5. Flush (All the same suit) <br>
+            6. Straight (A basic sequence such as 6-5-4-3-2) <br>
+            7. Three of a kind (Three cards that are the same value such as 5-5-5) <br>
+            8. Two-pair (Two pairs, such as 9-9 AND 5-5) <br>
+            9. Pair (Any pair whether it’s A-A or 2-2) <br>
+            10. High Card (Whatever your highest card is) <br>
+            </p>
+        </div>
+    </div>
+
     <div class="flex-container" id="gameScreen" style="width:100%; height:90%; display:flex; flex-direction:row; flex-wrap:nowrap; align-items:flex-start;">
         <div class="container" style="width:25%;height:100%;">
-            <div style="height:20%; width:100%; min-height:100px">
-                <text>
-                Players In Game:
+            <div style="height: 10%; width:100%; min-height:100px">
+
+                <text style="height:5%; width:100%; font-weight:bold; font-family: 'Lucida Console, Monaco, monospace';">
+                    Players In Game
                 </text>
 
                 <div id="playerArray" style="width: 100%; overflow-y:scroll;">
                 </div>
             </div>
-            <div class="playHistory" id="playHistory" style="height:80%; overflow-y:scroll;">
-                <div class="playHistoryLabel">
-                Play History
+            <div class="playHistory" id="playHistory">
+                <div class="playHistorylabel" style="height:5%; width:100%; font-weight:bold; font-family: 'Lucida Console, Monaco, monospace';">
+                    Play History
                 </div>
             </div>
         </div>
 
         <div class="container" style="width:50%;height:100%; display:flex; flex-direction:column;">
             <container class="cardTable" id="cardTable">
-                <div id='pot' style="color:white;">
-                    0
+
+                <div style="color:white; display:flex; flex-direction:row;"> 
+                    <div> Current Pot:  </div>
+                    <div id='pot'>
+                        0
+                    </div>
                 </div>
                 <div class='cardRow'>
                     <img id='community0' class='card' src="../client/images/cards/card_back.svg">
@@ -50,8 +115,11 @@
                     <img id='hand0' class='card' src="../client/images/cards/card_back.svg">
                     <img id='hand1' class='card' src="../client/images/cards/card_back.svg">
                 </div>
-                <div id='balance' style="color:white;">
-                    200
+                <div style="color:white; display:flex; flex-direction:row;">
+                    <div> Your Balance:  </div>
+                    <div id='balance'>
+                        200
+                    </div>
                 </div>
             </container> 
 
@@ -63,13 +131,6 @@
                     <button class="btn btn-primary btn-lg" type="button" onclick="onCall()">Call</button>
                     <button class="btn btn-primary btn-lg" type="button" onclick="onFold()">Fold</button>
                 </form>
-                
-                <div class='buttonRow' style="text-align:center; margin-top: 10px;">
-                    <button id="startGameButton" class="btn btn-primary btn-lg" type="button" onclick="startGame()">Start Game</button>
-                    <!-- <div class="buttonDivider"></div> -->
-                    <input type="checkbox" id="playWithBotButton" name="playWithBotButton" value="Bot">
-                    <label id="botButtonLabel" for="playWithBotButton"> Play With Bot</label><br>
-                </div>
             </div>
             <text>Made by: ieric, cathxu, anayat</text>
 
@@ -77,7 +138,10 @@
 
         <div class="container" style="width:25%; height:100%;background-color: #e8e8e8;">
             <div style="height:100%; min-height:300px">
-                <div id="chat" style="height:93%; overflow-y:scroll;">
+                <div class="gameTitleTab">
+                    <h2>Chat</h2>
+                </div>
+                <div id="chat" style="height:93%; overflow-y:auto;">
                 </div>
 
                 <form id="chatForm" style="width:95%;">
@@ -133,19 +197,64 @@
         socket.emit('startSession', {  sessionId: session_id, gameId: gameId })
         socket.emit('roomEntered', {gameId: window.location.pathname.split('/')[2]})     
 
-        function startGame(){
-            if (playWithBotButton.checked) {
-                console.log("starting game with bot");
-                socket.emit('playWithBot', {gameId: gameId});
+        // function ScrollDiv(){
+        //     document.getElementById("chat").scrollBottom = elem.scrollHeight;
+        // }
+
+        // setInterval(SrollDiv,5000)
+
+        // Get the modal
+        var insnModal = document.getElementById("instructionModal");
+        var handsModal = document.getElementById("pokerHandsModal");
+
+        // Get the button that opens the modal
+        var insnBtn = document.getElementById("instructions");
+        var handsBtn = document.getElementById("cheatSheet");
+
+        // Get the <span> element that closes the modal
+        var span = document.getElementsByClassName("close")[0];
+        var sheetSpan = document.getElementsByClassName("closeSheet")[0];
+
+        // When the user clicks on the button, open the modal
+        insnBtn.onclick = function() {
+            insnModal.style.display = "block";
+        }
+        handsBtn.onclick = function() {
+            handsModal.style.display = "block";
+        }
+
+        // When the user clicks on <span> (x), close the modal
+        span.onclick = function() {
+            insnModal.style.display = "none";
+        }
+        sheetSpan.onclick = function() {
+            handsModal.style.display = "none";
+        }
+
+        // When the user clicks anywhere outside of the modal, close it
+        window.onclick = function(event) {
+            if (event.target == insnModal) {
+                insnModal.style.display = "none";
+                
             }
-            else {
-                console.log("starting game");
-                socket.emit('startGame', {gameId: gameId});
+            if (event.target == handsModal) {
+                handsModal.style.display= "none";
             }
         }
 
-        function playWithBot(){
+        function startGame(){
+            // if (playWithBotButton.checked) {
+            //     console.log("starting game with bot");
+            //     socket.emit('playWithBot', {gameId: gameId});
+            // }
+            // else {
+                console.log("starting game");
+                socket.emit('startGame', {gameId: gameId});
+            // }
+        }
 
+        function playWithBot(){
+            socket.emit('playWithBot', {gameId: gameId});
         }
 
         function playTurn(){
@@ -270,8 +379,6 @@
 
     </script>
 </body>
-
-
 
 </html>
 
