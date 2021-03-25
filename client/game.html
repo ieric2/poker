@@ -359,7 +359,7 @@
             playerArrayTag.innerHTML = "";
             for (i in data.playerNames){
                 if (i == data.playerTurn){
-                    data.playerNames[i] = '<b>' + data.playerNames[i] + '</b>';
+                    data.playerNames[i] = '<b>' + data.playerNames[i] + ' [ACTION] ' + '</b>';
                 }
                 if (data.playerIds[i] == session_id){
                     playerArrayTag.innerHTML += '<div>' + data.playerNames[i] + '<b> [ME] </b>' + '</div>';
