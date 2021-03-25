@@ -77,6 +77,15 @@
         </div>
     </div>
 
+    <div id="playerCardsModal" class="modal">
+        <div class="modal-content">
+            <span class="closeCards">&times;</span>
+            Player Cards from Previous Hand:
+            <div id="playerCards" style="display: contents; align-items: center;">
+            </div>
+        </div>
+    </div>
+
     <div class="flex-container" id="gameScreen" style="width:100%; height:90%; display:flex; flex-direction:row; flex-wrap:nowrap; align-items:flex-start;">
         <div class="container" style="width:25%;height:100%;">
             <div style="height: 10%; width:100%; min-height:100px">
@@ -181,8 +190,11 @@
         const hand0 = document.getElementById("hand0");
         const hand1 = document.getElementById("hand1");
 
+        const playerCards = document.getElementById("playerCards")
+
         var communityCards = [community0, community1, community2, community3, community4]
         var handCards = [hand0, hand1];
+        var playerHistoryCards = [];
 
         var gameInProgress = false;   
 
@@ -204,16 +216,18 @@
         // setInterval(SrollDiv,5000)
 
         // Get the modal
-        var insnModal = document.getElementById("instructionModal");
-        var handsModal = document.getElementById("pokerHandsModal");
+        const insnModal = document.getElementById("instructionModal");
+        const handsModal = document.getElementById("pokerHandsModal");
+        const playerCardsModal = document.getElementById("playerCardsModal")
 
         // Get the button that opens the modal
-        var insnBtn = document.getElementById("instructions");
-        var handsBtn = document.getElementById("cheatSheet");
+        const insnBtn = document.getElementById("instructions");
+        const handsBtn = document.getElementById("cheatSheet");
 
         // Get the <span> element that closes the modal
         var span = document.getElementsByClassName("close")[0];
         var sheetSpan = document.getElementsByClassName("closeSheet")[0];
+        var closeCards = document.getElementsByClassName("closeCards")[0];
 
         // When the user clicks on the button, open the modal
         insnBtn.onclick = function() {
@@ -230,15 +244,20 @@
         sheetSpan.onclick = function() {
             handsModal.style.display = "none";
         }
+        closeCards.onclick = function() {
+            playerCardsModal.style.display = "none";
+        }
 
         // When the user clicks anywhere outside of the modal, close it
         window.onclick = function(event) {
             if (event.target == insnModal) {
                 insnModal.style.display = "none";
-                
             }
             if (event.target == handsModal) {
                 handsModal.style.display= "none";
+            }
+            if (event.target == playerCardsModal) {
+                playerCardsModal.style.display= "none";
             }
         }
 
@@ -282,6 +301,10 @@
 
         function displayCommunityCard(src, index) {
             communityCards[index].src = src;
+        }
+
+        function displayPlayerHistoryCards(src, player, index) {
+
         }
 
         socket.on('sessionAck', function(data){
@@ -353,6 +376,25 @@
             startGameButton.style.display = "none"
             playWithBotButton.style.display = "none"
             botButtonLabel.style.display = "none"
+        })
+
+        socket.on("showPlayerCards", function() {
+            playerCardsModal.style.display = "block"
+            playerCards.innerHTML = ''
+            for (let i = 0; i < playerHistoryCards.length; i++) {
+                console.log(playerHistoryCards[i])
+                playerCards.innerHTML += `
+                <div class='cardRow'>
+                    <div>${playerHistoryCards[i].playerName}:</div>
+                    <img id='hand0' class='card' src="../client/images/cards/${playerHistoryCards[i].cards[0]}.svg">
+                    <img id='hand1' class='card' src="../client/images/cards/${playerHistoryCards[i].cards[1]}.svg">
+                </div>`
+            }
+            playerHistoryCards = []
+        })
+
+        socket.on("sendPlayerCards", function(data) {
+            playerHistoryCards.push(data)
         })
 
         socket.on("updatePlayerArray", function(data){

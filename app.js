@@ -350,9 +350,14 @@ function printStats(playerId, gameId) {
 function calculateHandValue(gameId, playerId, displayHand) {
     let player = playerList[playerId];
     let cards = player.cards.concat(gameList[gameId].communityCards);
+    //here we are emitting to the play history but we also want to be emitting to the card result modal
     if (gameList[gameId].phase == 3 && displayHand) {
         io.to(gameId).emit('updateGame', {
             text: '' + player.name + ' had: ' + cards
+        })
+        io.to(gameId).emit('sendPlayerCards', {
+            cards,
+            playerName: player.name,
         })    
     }
     
@@ -581,6 +586,7 @@ function calculateHandResult(gameId) {
     io.to(gameId).emit('updateGame', {
         text: winnerText
     })
+    io.to(gameId).emit('showPlayerCards', {})
     setupHand(gameId)  
 }
 //where 0 - preflop betting, 1 - flop betting, 2 - turn betting, 3 - river betting
