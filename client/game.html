@@ -134,6 +134,8 @@
                     <div id='balance'>
                         200
                     </div>
+                    <div id='otherbalances'>
+                    </div>
                 </div>
             </container> 
 
@@ -197,9 +199,11 @@
 
         const playerCards = document.getElementById("playerCards")
 
+
         var communityCards = [community0, community1, community2, community3, community4]
         var handCards = [hand0, hand1];
         var playerHistoryCards = [];
+        var playerBalances = []
 
         var gameInProgress = false;   
 
@@ -364,7 +368,12 @@
         });
 
         socket.on('setBalance', data => {
-            balance.innerHTML = data.balance;
+            playerBalances[data.playerId] = data.balance
+            console.log(session_id)
+            console.log(data.playerId)
+            if (data.playerId == session_id) {
+                balance.innerHTML = data.balance;
+            }
         })
 
         socket.on('setPot', data => {
@@ -390,7 +399,6 @@
             playerCardsModal.style.display = "block"
             playerCards.innerHTML = ''
             for (let i = 0; i < playerHistoryCards.length; i++) {
-                console.log(playerHistoryCards[i])
                 playerCards.innerHTML += `
                 <div class='cardRow'>
                     <div>${playerHistoryCards[i].playerName}:</div>
@@ -408,15 +416,22 @@
         socket.on("updatePlayerArray", function(data){
             playerArrayTag.innerHTML = "";
             for (i in data.playerNames){
+                var addedDiv = ''
                 if (i == data.playerTurn){
                     data.playerNames[i] = '<b>' + data.playerNames[i] + ' [Your Turn] ' + '</b>';
                 }
                 if (data.playerIds[i] == session_id){
-                    playerArrayTag.innerHTML += '<div>' + data.playerNames[i] + '<b> [ME] </b>' + '</div>';
+                    addedDiv = data.playerNames[i] + '<b> [ME] </b>';
                 }
                 else{
-                    playerArrayTag.innerHTML += '<div>' + data.playerNames[i] + '</div>';
+                    addedDiv = data.playerNames[i];
                 }
+                if (playerBalances[data.playerIds[i]]) {
+                   addedDiv += ' - ' + playerBalances[data.playerIds[i]]
+
+                }
+                addedDiv = '<div>' + addedDiv + '</div>'
+                playerArrayTag.innerHTML += addedDiv
             }
         })
 

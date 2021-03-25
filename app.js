@@ -572,8 +572,9 @@ function calculateHandResult(gameId) {
     }
     for (let playerId of winners) {
         playerList[playerId].balance += gameList[gameId].pot / winners.length;
-        io.to(playerId).emit('setBalance', {
-            balance: playerList[playerId].balance
+        io.to(gameId).emit('setBalance', {
+            balance: playerList[playerId].balance,
+            playerId
         })
         updatePlayerWinCount(playerId);
         updatePlayerGameTime(playerId, gameId);
@@ -715,8 +716,9 @@ function botTurn(socket) {
     io.to(socket.gameId).emit('setPot', {	
         pot: gameList[socket.gameId].pot	
     })	
-    socket.emit('setBalance', {	
-        balance:playerList[botId].balance	
+    io.to(socket.gameId).emit('setBalance', {	
+        balance:playerList[botId].balance,
+        playerId: botId	
     });	
     //fold	
     if (bet == -1) {	
@@ -1040,8 +1042,9 @@ io.on("connection", function (socket) {
                     pot: gameList[data.gameId].pot
                 })
     
-                socket.emit('setBalance', {
-                    balance:playerList[socket.realId].balance
+                io.to(data.gameId).emit('setBalance', {
+                    balance:playerList[socket.realId].balance,
+                    playerId: socket.realId
                 });
             }
 
