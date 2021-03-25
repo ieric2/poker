@@ -14,6 +14,7 @@ app.get("/game/:roomId", function (req, res) {
 });
 app.use("/client", express.static(__dirname + "/client"));
 //console.log("Server started.");
+
 class Player {
     constructor(id, isBot) {
         this.id = id;
@@ -213,6 +214,7 @@ var playerDataList = {};
 var playerArray = [];
 var gameArray = [];
 var botId = 1230;
+var botBluff = false;
 function createPlayer(socket) {
     playerList[socket.realId] = new Player(socket.realId, false);
     playerArray.push(socket.realId);
@@ -286,6 +288,13 @@ function setupHand(gameId) {
             cards: playerList[playerId].cards,
         });
         updatePlayerArray(gameId);
+    }
+    let randomNum = Math.floor(Math.random() * 10);
+    if (randomNum == 1) {
+        botBluff = true;
+    }
+    else {
+        botBluff = false;
     }
 }
 function convertCardValue(value) {
@@ -646,6 +655,7 @@ function calculateNextTurn(socket, gameId) {
         return;
     }
 
+
     //check if betting round is over
     let pointer = (curTurn + 1) % numPlayers;
     while(pointer != curTurn) {
@@ -682,8 +692,12 @@ function calculateNextTurn(socket, gameId) {
     calculateHandResult(gameId);
 }
 
-function botTurn(socket) {	
-    let botHandVal = calculateHandValue(socket.gameId, botId, false);	
+function botTurn(socket) {
+    let botHandVal = calculateHandValue(socket.gameId, botId, false);
+    console.log("botBluff" + botBluff);	
+    if (botBluff) {
+        botHandVal = 700000000;
+    }
     let recentBet = gameList[socket.gameId].recentBet;	
     let called = gameList[socket.gameId].called;
     let bet = calculateBotBet(recentBet, called, botHandVal, socket.gameId);	
@@ -761,6 +775,8 @@ function calculateBotBet(recentBet, called, botHandVal, gameId) {
         // console.log("Card 1: " + num1 + suit1);
         // //console.log("Card 2: " + num2 + suit2);
 
+        //console.log(recentBet);
+
         //pair
         if (num1 == num2) {
             //if they call we should just bet like 10 else 
@@ -791,8 +807,7 @@ function calculateBotBet(recentBet, called, botHandVal, gameId) {
         else {
             //call here
             bet = recentBet;
-        }
-        
+        } 
     } else if (curPhase == 1) { //flop betting
         if (botHandVal == undefined) { //but this shouldn't happen ?
             bet = -1;
