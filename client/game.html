@@ -100,9 +100,11 @@
                 <div id="playerArray" style="width: 100%; overflow-y:scroll;">
                 </div>
             </div>
-            <div class="playHistory" id="playHistory">
+            <div id="playHistoryContainer">
                 <div class="playHistorylabel" style="font-size:20px; font-weight:bold; font-family: 'Lucida Console, Monaco, monospace';">
                     Play History
+                </div>
+                <div id="playHistory" style="overflow-y:scroll; height:70%">
                 </div>
             </div>
         </div>
@@ -306,8 +308,9 @@
             communityCards[index].src = src;
         }
 
-        function displayPlayerHistoryCards(src, player, index) {
-
+        function updatePlayHistoryScroll(){
+            var element = document.getElementById("playHistory");
+            element.scrollTop = element.scrollHeight;
         }
 
         socket.on('sessionAck', function(data){
@@ -371,6 +374,7 @@
         socket.on("updateGame", function(data){
             console.log('updating game')
             playHistory.innerHTML +=  '<div>' + data.text + '</div>';
+            updatePlayHistoryScroll()
         })
 
         socket.on("displayPlayButtons", function(){
